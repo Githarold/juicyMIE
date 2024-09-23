@@ -11,20 +11,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pentastic/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App should render without crashing', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const PrinterControlApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Verify that the app renders without crashing
+    expect(find.byType(MaterialApp), findsOneWidget);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify that the MainScreen is present
+    expect(find.byType(MainScreen), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the BottomNavigationBar is present
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+
+    // Verify that the initial screen is HomeScreen
+    expect(find.byType(HomeScreen), findsOneWidget);
+
+    // Tap the Files icon and verify that FilesScreen appears
+    await tester.tap(find.byIcon(Icons.file_copy));
+    await tester.pumpAndSettle();
+    expect(find.byType(FilesScreen), findsOneWidget);
+
+    // Tap the Settings icon and verify that SettingsScreen appears
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsScreen), findsOneWidget);
   });
 }
