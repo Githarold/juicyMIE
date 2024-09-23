@@ -1,0 +1,130 @@
+name: Update Checker and Auto Release
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: '수동 실행 이유'
+        required: false
+        default: '정기 점검'
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Get changed files
+      id: changed-files
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          echo "::set-output name=files::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | tr '\n' ' ')"
+        else
+          echo "::set-output name=files::$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
+        fi
+
+    - name: Create issue
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{secrets.GIT_TOKEN}}
+        script: |
+          const changedFiles = '${{ steps.changed-files.outputs.files }}'.trim().split(' ');
+          if (changedFiles.length > 0) {
+            let issueBody = `
+            # 업데이트 알림
+            
+            다음 파일들이 업데이트되었습니다:
+            
+            ${changedFiles.map(file => `- ${file}`).join('\n')}
+            `;
+            
+            if ('${{ github.event_name }}' === 'push') {
+              issueBody += `\n커밋: [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})`;
+            } else {
+              issueBody += `\n수동 실행 이유: ${{ github.event.inputs.reason }}`;
+            }
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `업데이트 알림: ${new Date().toISOString()}`,
+              body: issueBody
+            });
+          }
+
+  auto-release:
+    needs: check-updates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'
+          channel: 'stable'
+      
+      - name: Check Flutter and Dart versions
+        run: |
+          flutter --version
+          dart --version
+      
+      - name: Install dependencies
+        run: |
+          flutter pub get
+          dart pub global activate cider
+      
+      - name: Bump version
+        run: cider bump patch
+      
+      - name: Update changelog
+        run: cider log add "Automated release"
+      
+      - name: Commit changes
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "chore: Bump version and update changelog"
+      
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GIT_TOKEN }}
+          branch: ${{ github.ref }}
+      
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        run: |
+          NEW_VERSION=$(cider version)
+          gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release"
+      
+      - name: Build APK
+        run: |
+          flutter build apk --release
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
+      
+      - name: Upload APK
+        env:
+          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+        run: |
+          NEW_VERSION=$(cider version)
+          gh release upload $NEW_VERSION build/app/outputs/flutter-apk/app-release.apk
