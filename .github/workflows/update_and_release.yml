@@ -68,6 +68,12 @@ jobs:
         with:
           fetch-depth: 0
       
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -111,7 +117,10 @@ jobs:
           gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release"
       
       - name: Build APK
-        run: flutter build apk
+        run: |
+          flutter build apk --release
+        env:
+          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
       
       - name: Upload APK
         env:
