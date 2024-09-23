@@ -15,7 +15,7 @@ permissions:
   issues: write
 
 jobs:
-  check-updates:
+  check-updates-and-analyze:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -31,59 +31,65 @@ jobs:
           echo "::set-output name=files::$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
         fi
 
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.3'
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Analyze code
+      run: flutter analyze --no-fatal-infos > analyze_report.txt
+
     - name: Create issue
       uses: actions/github-script@v6
       with:
         github-token: ${{secrets.GIT_TOKEN}}
         script: |
+          const fs = require('fs');
           const changedFiles = '${{ steps.changed-files.outputs.files }}'.trim().split(' ');
-          if (changedFiles.length > 0) {
-            let issueBody = `
-            # 업데이트 알림
-            
-            다음 파일들이 업데이트되었습니다:
-            
-            ${changedFiles.map(file => `- ${file}`).join('\n')}
-            `;
-            
-            if ('${{ github.event_name }}' === 'push') {
-              issueBody += `\n커밋: [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})`;
-            } else {
-              issueBody += `\n수동 실행 이유: ${{ github.event.inputs.reason }}`;
-            }
-            
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `업데이트 알림: ${new Date().toISOString()}`,
-              body: issueBody
-            });
+          const analyzeReport = fs.readFileSync('analyze_report.txt', 'utf8');
+          
+          let issueBody = `
+          # 업데이트 및 분석 보고서
+
+          ## 변경된 파일:
+          ${changedFiles.map(file => `- ${file}`).join('\n')}
+
+          ## 코드 분석 결과:
+          \`\`\`
+          ${analyzeReport}
+          \`\`\`
+          `;
+          
+          if ('${{ github.event_name }}' === 'push') {
+            issueBody += `\n커밋: [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})`;
+          } else {
+            issueBody += `\n수동 실행 이유: ${{ github.event.inputs.reason }}`;
           }
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `업데이트 및 분석 보고서: ${new Date().toISOString()}`,
+            body: issueBody
+          });
 
   auto-release:
-    needs: check-updates
+    needs: check-updates-and-analyze
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
       
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.3'
           channel: 'stable'
-      
-      - name: Check Flutter and Dart versions
-        run: |
-          flutter --version
-          dart --version
       
       - name: Install dependencies
         run: |
@@ -115,16 +121,3 @@ jobs:
         run: |
           NEW_VERSION=$(cider version)
           gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release"
-      
-      - name: Build APK
-        run: |
-          flutter build apk --release
-        env:
-          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
-      
-      - name: Upload APK
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-        run: |
-          NEW_VERSION=$(cider version)
-          gh release upload $NEW_VERSION build/app/outputs/flutter-apk/app-release.apk
