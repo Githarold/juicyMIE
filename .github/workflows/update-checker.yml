@@ -1,8 +1,8 @@
 name: Update Checker
 on:
   push:
-    branches: [ main ]  # main 브랜치에 push가 있을 때 실행
-  workflow_dispatch:  # 수동 실행 가능하도록 추가
+    branches: [ master ] 
+  workflow_dispatch:
     inputs:
       reason:
         description: '수동 실행 이유'
