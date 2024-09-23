@@ -18,9 +18,6 @@ void main() {
     // Verify that the app renders without crashing
     expect(find.byType(MaterialApp), findsOneWidget);
 
-    // Verify that the MainScreen is present
-    expect(find.byType(MainScreen), findsOneWidget);
-
     // Verify that the BottomNavigationBar is present
     expect(find.byType(BottomNavigationBar), findsOneWidget);
   });

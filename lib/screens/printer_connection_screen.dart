@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 class PrinterConnectionScreen extends StatefulWidget {
-  const PrinterConnectionScreen({Key? key}) : super(key: key);
+  const PrinterConnectionScreen({super.key});
 
   @override
-  _PrinterConnectionScreenState createState() => _PrinterConnectionScreenState();
+  State<PrinterConnectionScreen> createState() => PrinterConnectionScreenState();
 }
 
-class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
+class PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
   bool isConnected = false;
   List<String> nearbyDevices = ['Printer 1', 'Printer 2', 'Printer 3']; // Example data
 
