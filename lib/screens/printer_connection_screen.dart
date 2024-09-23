@@ -111,6 +111,10 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _scanForDevices,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16), // 버튼 크기 조정
+                textStyle: const TextStyle(fontSize: 18), // 텍스트 크기 조정
+              ),
               child: const Text('주변 기기 찾기'),
             ),
           ],

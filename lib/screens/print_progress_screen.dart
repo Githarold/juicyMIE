@@ -61,19 +61,21 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: isConnected
-            ? SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildProgressIndicator(),
-                    const SizedBox(height: 24),
-                    _buildStatusDetails(),
-                    const SizedBox(height: 24),
-                    _buildTemperatureInfo(),
-                    const SizedBox(height: 24),
-                    _buildControlButtons(),
-                  ],
-                ),
+            ? Column(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    flex: 7, // 더 큰 비율로 설정
+                    child: _buildProgressIndicator(),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildStatusDetails(),
+                  const SizedBox(height: 24),
+                  _buildTemperatureInfo(),
+                  const SizedBox(height: 24),
+                  _buildControlButtons(),
+                ],
               )
             : Center(
                 child: Text(
@@ -89,43 +91,47 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
   }
 
   Widget _buildProgressIndicator() {
-    return Center(
-      child: SizedBox(
-        width: 350, // 크기 조정
-        height: 350, // 크기 조정
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 20, // 더 두꺼운 선 설정
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
-            ),
-            Positioned(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      '${(progress * 100).toStringAsFixed(1)}%',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double size = constraints.maxWidth * 0.6;
+
+        return Center(
+          child: Container(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: size,
+                  height: size,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: size * 0.1, // 크기에 비례하여 선 두께 설정
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
                   ),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      status,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${(progress * 100).toStringAsFixed(1)}%',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      Text(
+                        status,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
