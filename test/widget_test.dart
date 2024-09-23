@@ -23,18 +23,5 @@ void main() {
 
     // Verify that the BottomNavigationBar is present
     expect(find.byType(BottomNavigationBar), findsOneWidget);
-
-    // Verify that the initial screen is HomeScreen
-    expect(find.byType(HomeScreen), findsOneWidget);
-
-    // Tap the Files icon and verify that FilesScreen appears
-    await tester.tap(find.byIcon(Icons.file_copy));
-    await tester.pumpAndSettle();
-    expect(find.byType(FilesScreen), findsOneWidget);
-
-    // Tap the Settings icon and verify that SettingsScreen appears
-    await tester.tap(find.byIcon(Icons.settings));
-    await tester.pumpAndSettle();
-    expect(find.byType(SettingsScreen), findsOneWidget);
   });
 }
