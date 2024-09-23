@@ -19,6 +19,7 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
   double bedTemp = 60.0;
   bool isConnected = true;
   final BluetoothService _bluetoothService = BluetoothService();
+  bool isPaused = false;
 
   @override
   void initState() {
@@ -90,35 +91,37 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
   Widget _buildProgressIndicator() {
     return Center(
       child: SizedBox(
-        width: 300, // 고정된 크기 설정
-        height: 300, // 고정된 크기 설정
+        width: 350, // 크기 조정
+        height: 350, // 크기 조정
         child: Stack(
           alignment: Alignment.center,
           children: [
             CircularProgressIndicator(
               value: progress,
-              strokeWidth: 30, // 더 두꺼운 선 설정
+              strokeWidth: 20, // 더 두꺼운 선 설정
               backgroundColor: Colors.grey[300],
               valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
             ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '${(progress * 100).toStringAsFixed(1)}%',
-                    style: Theme.of(context).textTheme.headlineMedium,
+            Positioned(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '${(progress * 100).toStringAsFixed(1)}%',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
                   ),
-                ),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    status,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      status,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -127,12 +130,66 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
   }
 
   Widget _buildStatusDetails() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('예상 소요 시간: 2h 15m', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        Text('층: $currentLayer / $totalLayers', style: Theme.of(context).textTheme.titleLarge),
+        Expanded(
+          child: Card(
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+              child: Column(
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '예상 소요 시간',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '2h 15m',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Card(
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+              child: Column(
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '층',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '$currentLayer / $totalLayers',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -185,10 +242,13 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () {
+              setState(() {
+                isPaused = !isPaused;
+              });
               // 일시정지/재개 로직
             },
-            icon: const Icon(Icons.pause),
-            label: const Text('일시정지'),
+            icon: Icon(isPaused ? Icons.play_arrow : Icons.pause),
+            label: Text(isPaused ? '재시작' : '일시정지'),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -205,6 +265,7 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
             label: const Text('중지'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError, // 글씨 색상 변경
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),

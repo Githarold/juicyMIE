@@ -3,6 +3,7 @@ import 'gcode_management_screen.dart';
 import 'print_progress_screen.dart';
 import 'settings_screen.dart';
 import 'printer_connection_screen.dart';
+import 'info_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,12 +12,15 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('3D 프린터'),
+        title: const Text('과즙 MIE'),
         actions: [
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
-              // 정보 화면 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const InfoScreen()), // 정보 화면으로 이동
+              );
             },
           ),
         ],

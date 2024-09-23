@@ -20,15 +20,13 @@ class PrinterControlApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: '3D 프린터 제어',
+          title: '3D ㄴ프린터',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.light(
               primary: Colors.blue,
               onPrimary: Colors.white,
-              background: Colors.grey[100]!,
-              onBackground: Colors.black,
-              surface: Colors.white,
+              surface: Colors.grey[100]!,
               onSurface: Colors.black,
             ),
             scaffoldBackgroundColor: Colors.grey[100],
@@ -57,9 +55,7 @@ class PrinterControlApp extends StatelessWidget {
             colorScheme: ColorScheme.dark(
               primary: Colors.blue,
               onPrimary: Colors.black,
-              background: Colors.grey[900]!,
-              onBackground: Colors.white,
-              surface: Colors.grey[800]!,
+              surface: Colors.grey[900]!,
               onSurface: Colors.white,
             ),
             scaffoldBackgroundColor: Colors.grey[900],

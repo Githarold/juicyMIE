@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/theme_provider.dart';
+import 'info_screen.dart';
+import 'license_screen.dart'; // 라이선스 화면 import
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -100,12 +102,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('앱 버전'),
             subtitle: const Text('1.0.0'),
             trailing: const Icon(Icons.info_outline),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const InfoScreen()),
+              );
+            },
           ),
           ListTile(
             title: const Text('오픈소스 라이선스'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () {
-              // 오픈소스 라이선스 화면으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LicenseScreen()), // 라이선스 화면으로 이동
+              );
             },
           ),
         ],

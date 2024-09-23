@@ -70,8 +70,8 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addFile,
-        child: const Icon(Icons.add),
         tooltip: '파일 추가',
+        child: const Icon(Icons.add),
       ),
     );
   }
