@@ -20,7 +20,7 @@ jobs:
     - name: Create issue
       uses: actions/github-script@v6
       with:
-        github-token: ${{secrets.GITHUB_TOKEN}}
+        github-token: ${{secrets.GIT_TOKEN}}
         script: |
           const changedFiles = '${{ steps.changed-files.outputs.files }}'.trim().split(' ');
           if (changedFiles.length > 0) {
