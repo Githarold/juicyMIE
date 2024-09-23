@@ -1,0 +1,43 @@
+name: Update Checker
+
+on:
+  push:
+    branches: [ main ]  # main 브랜치에 push가 있을 때 실행
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0  # 전체 히스토리를 가져옵니다
+
+    - name: Get changed files
+      id: changed-files
+      run: |
+        echo "::set-output name=files::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | tr '\n' ' ')"
+
+    - name: Create issue
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          const changedFiles = '${{ steps.changed-files.outputs.files }}'.trim().split(' ');
+          if (changedFiles.length > 0) {
+            const issueBody = `
+            # 업데이트 알림
+            
+            다음 파일들이 업데이트되었습니다:
+            
+            ${changedFiles.map(file => `- ${file}`).join('\n')}
+            
+            커밋: [${{ github.sha }}](${{ github.event.repository.html_url }}/commit/${{ github.sha }})
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `업데이트 알림: ${new Date().toISOString()}`,
+              body: issueBody
+            });
+          }
