@@ -54,7 +54,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('기본 노즐 온도'),
             subtitle: Text('${_nozzleTemperature.toStringAsFixed(1)}°${_temperatureUnit == '섭씨' ? 'C' : 'F'}'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.edit),
             onTap: () => _showTemperatureDialog('노즐', _nozzleTemperature, (value) {
               setState(() => _nozzleTemperature = value);
               _saveSettings();
@@ -63,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('기본 베드 온도'),
             subtitle: Text('${_bedTemperature.toStringAsFixed(1)}°${_temperatureUnit == '섭씨' ? 'C' : 'F'}'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.edit),
             onTap: () => _showTemperatureDialog('베드', _bedTemperature, (value) {
               setState(() => _bedTemperature = value);
               _saveSettings();
@@ -72,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             title: const Text('온도 단위'),
             subtitle: Text(_temperatureUnit),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.arrow_forward_ios),
             onTap: _showTemperatureUnitDialog,
           ),
           _buildSectionHeader('앱 설정'),
@@ -84,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               setState(() => _notificationsEnabled = value);
               _saveSettings();
             },
+            secondary: const Icon(Icons.notifications),
           ),
           SwitchListTile(
             title: const Text('다크 모드'),
@@ -92,15 +93,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (bool value) {
               themeProvider.toggleTheme();
             },
+            secondary: const Icon(Icons.dark_mode),
           ),
           _buildSectionHeader('정보'),
           ListTile(
             title: const Text('앱 버전'),
             subtitle: const Text('1.0.0'),
+            trailing: const Icon(Icons.info_outline),
           ),
           ListTile(
             title: const Text('오픈소스 라이선스'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () {
               // 오픈소스 라이선스 화면으로 이동
             },
@@ -112,13 +115,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 14,
+          fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: Colors.grey[600],
+          color: Colors.grey[700],
         ),
       ),
     );
@@ -186,27 +189,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       });
                     },
                   ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: textController,
-                          keyboardType: TextInputType.number,
-                          decoration: InputDecoration(
-                            suffixText: _temperatureUnit == '섭씨' ? '°C' : '°F',
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (value) {
-                            double? newTemp = double.tryParse(value);
-                            if (newTemp != null && newTemp >= 0 && newTemp <= 300) {
-                              setState(() {
-                                currentTemp = newTemp;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: textController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      suffixText: _temperatureUnit == '섭씨' ? '°C' : '°F',
+                      border: OutlineInputBorder(),
+                      labelText: '$type 온도',
+                    ),
+                    onChanged: (value) {
+                      double? newTemp = double.tryParse(value);
+                      if (newTemp != null && newTemp >= 0 && newTemp <= 300) {
+                        setState(() {
+                          currentTemp = newTemp;
+                        });
+                      }
+                    },
                   ),
                 ],
               ),
@@ -215,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: const Text('취소'),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-                TextButton(
+                ElevatedButton(
                   child: const Text('확인'),
                   onPressed: () {
                     double? finalTemp = double.tryParse(textController.text);

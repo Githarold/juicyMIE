@@ -21,9 +21,70 @@ class PrinterControlApp extends StatelessWidget {
       builder: (context, themeProvider, child) {
         return MaterialApp(
           title: '3D 프린터 제어',
-          theme: ThemeData.light(),
-          darkTheme: ThemeData.dark(),
-          themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.light(
+              primary: Colors.blue,
+              onPrimary: Colors.white,
+              background: Colors.grey[100]!,
+              onBackground: Colors.black,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+            scaffoldBackgroundColor: Colors.grey[100],
+            cardTheme: CardTheme(
+              color: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            iconTheme: const IconThemeData(color: Colors.blue),
+            textTheme: TextTheme(
+              headlineMedium: TextStyle(color: Colors.black),
+              titleMedium: TextStyle(color: Colors.black),
+              titleSmall: TextStyle(color: Colors.black),
+            ),
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.blue,
+              iconTheme: const IconThemeData(color: Colors.white),
+              titleTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.dark(
+              primary: Colors.blue,
+              onPrimary: Colors.black,
+              background: Colors.grey[900]!,
+              onBackground: Colors.white,
+              surface: Colors.grey[800]!,
+              onSurface: Colors.white,
+            ),
+            scaffoldBackgroundColor: Colors.grey[900],
+            cardTheme: CardTheme(
+              color: Colors.grey[800],
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            iconTheme: const IconThemeData(color: Colors.blueAccent),
+            textTheme: TextTheme(
+              headlineMedium: TextStyle(color: Colors.white),
+              titleMedium: TextStyle(color: Colors.white),
+              titleSmall: TextStyle(color: Colors.white),
+            ),
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.grey[900],
+              iconTheme: const IconThemeData(color: Colors.blueAccent),
+              titleTextStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          themeMode: themeProvider.themeMode,
           home: const HomeScreen(),
         );
       },

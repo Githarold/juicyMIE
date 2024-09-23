@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/bluetooth_service.dart'; // BluetoothService를 가져오기 위해 추가
+import '../services/bluetooth_service.dart';
 
 class PrintProgressScreen extends StatefulWidget {
-  final bool isTestMode; // 테스트 모드를 위한 플래그 추가
+  final bool isTestMode;
 
   const PrintProgressScreen({super.key, this.isTestMode = true});
 
@@ -11,14 +11,14 @@ class PrintProgressScreen extends StatefulWidget {
 }
 
 class PrintProgressScreenState extends State<PrintProgressScreen> {
-  double progress = 0.65; // Example progress
+  double progress = 0.65;
   String status = '출력 중';
   int currentLayer = 42;
   int totalLayers = 100;
   double nozzleTemp = 200.5;
   double bedTemp = 60.0;
-  bool isConnected = true; // 프린터 연결 상태를 나타내는 변수
-  final BluetoothService _bluetoothService = BluetoothService(); // BluetoothService 인스턴스 추가
+  bool isConnected = true;
+  final BluetoothService _bluetoothService = BluetoothService();
 
   @override
   void initState() {
@@ -29,7 +29,6 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
   }
 
   Future<void> _checkPrinterConnection() async {
-    // 여기에 프린터의 블루투스 주소를 입력하세요
     const String printerAddress = '00:00:00:00:00:00';
     bool connected = await _bluetoothService.connectToPrinter(printerAddress);
     setState(() {
@@ -49,89 +48,169 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('진행 상황'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              // 진행 상황 새로고침 로직
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isConnected) // 연결 상태에 따른 에러 메시지 표시
-              Center(
-                child: Text(
-                  '프린터가 연결되지 않았습니다.',
-                  style: TextStyle(color: Colors.red, fontSize: 18),
+        child: isConnected
+            ? SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildProgressIndicator(),
+                    const SizedBox(height: 24),
+                    _buildStatusDetails(),
+                    const SizedBox(height: 24),
+                    _buildTemperatureInfo(),
+                    const SizedBox(height: 24),
+                    _buildControlButtons(),
+                  ],
                 ),
               )
-            else ...[
-              Center(
-                child: SizedBox(
-                  width: 300,
-                  height: 300,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 300,
-                        height: 300,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 30,
-                          backgroundColor: Colors.grey[300],
-                          valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
-                        ),
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${(progress * 100).toStringAsFixed(1)}%',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          Text(
-                            'Complete',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                    ],
+            : Center(
+                child: Text(
+                  '프린터가 연결되지 않았습니다.',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 18,
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text('Status: $status', style: Theme.of(context).textTheme.titleLarge),
-              Text('Estimated time remaining: 2h 15m'),
-              Text('Layer: $currentLayer / $totalLayers'),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Nozzle: ${nozzleTemp.toStringAsFixed(1)}°C'),
-                  Text('Bed: ${bedTemp.toStringAsFixed(1)}°C'),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      // Add pause/resume logic here
-                    },
-                    child: const Text('Pause/Resume'),
+      ),
+    );
+  }
+
+  Widget _buildProgressIndicator() {
+    return Center(
+      child: SizedBox(
+        width: 300, // 고정된 크기 설정
+        height: 300, // 고정된 크기 설정
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CircularProgressIndicator(
+              value: progress,
+              strokeWidth: 30, // 더 두꺼운 선 설정
+              backgroundColor: Colors.grey[300],
+              valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${(progress * 100).toStringAsFixed(1)}%',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: () {
-                      // Add stop logic here
-                    },
-                    child: const Text('Stop'),
+                ),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    status,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('예상 소요 시간: 2h 15m', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 8),
+        Text('층: $currentLayer / $totalLayers', style: Theme.of(context).textTheme.titleLarge),
+      ],
+    );
+  }
+
+  Widget _buildTemperatureInfo() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildTemperatureCard('노즐', nozzleTemp),
+        _buildTemperatureCard('베드', bedTemp),
+      ],
+    );
+  }
+
+  Widget _buildTemperatureCard(String label, double temperature) {
+    return Expanded(
+      child: Card(
+        color: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+          child: Column(
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '$label 온도',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                ),
+              ),
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${temperature.toStringAsFixed(1)}°C',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // 일시정지/재개 로직
+            },
+            icon: const Icon(Icons.pause),
+            label: const Text('일시정지'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // 중지 로직
+            },
+            icon: const Icon(Icons.stop),
+            label: const Text('중지'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

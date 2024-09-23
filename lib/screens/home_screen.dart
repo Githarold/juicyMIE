@@ -12,91 +12,57 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('3D 프린터'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            onPressed: () {
+              // 정보 화면 이동
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '프린터 상태',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('상태:'),
-                        Text('연결됨', style: TextStyle(color: Colors.green[700])),
-                      ],
-    
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text('노즐 온도:'),
-                        Text('200°C'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Text('베드 온도:'),
-                        Text('60°C'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildPrinterStatusCard(context),
             const SizedBox(height: 24),
-            Text(
-              '빠른 작업',
-              style: Theme.of(context).textTheme.headlineSmall,
+            _buildQuickActionsGrid(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrinterStatusCard(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('상태:', style: TextStyle(fontSize: 16)),
+                Text('연결됨', style: TextStyle(color: Colors.green[700], fontSize: 16)),
+              ],
             ),
             const SizedBox(height: 8),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              childAspectRatio: 1.5,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              children: [
-                _buildQuickActionCard(
-                  context,
-                  '새 프린트 시작',
-                  Icons.play_arrow,
-                  Colors.blue,
-                  () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GCodeManagementScreen())),
-                ),
-                _buildQuickActionCard(
-                  context,
-                  '진행 중인 프린트',
-                  Icons.assessment,
-                  Colors.orange,
-                  () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrintProgressScreen())),
-                ),
-                _buildQuickActionCard(
-                  context,
-                  '설정',
-                  Icons.settings,
-                  Colors.grey,
-                  () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())),
-                ),
-                _buildQuickActionCard(
-                  context,
-                  '프린터 연결',
-                  Icons.bluetooth,
-                  Colors.green,
-                  () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrinterConnectionScreen())),
-                ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text('노즐 온도:', style: TextStyle(fontSize: 16)),
+                Text('200°C', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text('베드 온도:', style: TextStyle(fontSize: 16)),
+                Text('60°C', style: TextStyle(fontSize: 16)),
               ],
             ),
           ],
@@ -105,16 +71,83 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildQuickActionsGrid(BuildContext context) {
+    return Expanded(
+      child: GridView.builder(
+        itemCount: 4,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 1.2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+        ),
+        itemBuilder: (context, index) {
+          switch (index) {
+            case 0:
+              return _buildQuickActionCard(
+                context,
+                '새 프린트 시작',
+                Icons.play_arrow,
+                Colors.blue,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const GCodeManagementScreen()),
+                ),
+              );
+            case 1:
+              return _buildQuickActionCard(
+                context,
+                '진행 중인 프린트',
+                Icons.assessment,
+                Colors.orange,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrintProgressScreen()),
+                ),
+              );
+            case 2:
+              return _buildQuickActionCard(
+                context,
+                '설정',
+                Icons.settings,
+                Colors.grey,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                ),
+              );
+            case 3:
+              return _buildQuickActionCard(
+                context,
+                '프린터 연결',
+                Icons.bluetooth,
+                Colors.green,
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrinterConnectionScreen()),
+                ),
+              );
+            default:
+              return Container();
+          }
+        },
+      ),
+    );
+  }
+
   Widget _buildQuickActionCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
     return Card(
       color: color,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               title,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

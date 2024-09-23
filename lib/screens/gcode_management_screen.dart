@@ -44,29 +44,34 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
         itemCount: gcodeFiles.length,
         itemBuilder: (context, index) {
           final file = gcodeFiles[index];
-          return ListTile(
-            title: Text(file['name'] ?? ''),
-            subtitle: Text('Size: ${file['size']} | Created: ${file['date']}'),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.print),
-                  onPressed: () => _startPrinting(file),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _confirmDeleteFile(index),
-                ),
-              ],
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              title: Text(file['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('Size: ${file['size']} | Created: ${file['date']}'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.print, color: Colors.blue),
+                    onPressed: () => _startPrinting(file),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _confirmDeleteFile(index),
+                  ),
+                ],
+              ),
+              onTap: () => _showFileDetails(file),
             ),
-            onTap: () => _showFileDetails(file),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addFile,
         child: const Icon(Icons.add),
+        tooltip: '파일 추가',
       ),
     );
   }
