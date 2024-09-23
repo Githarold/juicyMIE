@@ -10,6 +10,10 @@ on:
         required: false
         default: '정기 점검'
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   check-updates:
     runs-on: ubuntu-latest
@@ -94,7 +98,10 @@ jobs:
           git commit -m "chore: Bump version and update changelog"
       
       - name: Push changes
-        run: git push
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GIT_TOKEN }}
+          branch: ${{ github.ref }}
       
       - name: Create Release
         env:
