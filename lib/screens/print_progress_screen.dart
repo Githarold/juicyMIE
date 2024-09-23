@@ -66,14 +66,14 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
-                    flex: 7, // 더 큰 비율로 설정
+                    flex: 7,
                     child: _buildProgressIndicator(),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 24), // SizedBox로 공백 추가
                   _buildStatusDetails(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 24), // SizedBox로 공백 추가
                   _buildTemperatureInfo(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 24), // SizedBox로 공백 추가
                   _buildControlButtons(),
                 ],
               )
@@ -96,7 +96,7 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
         final double size = constraints.maxWidth * 0.6;
 
         return Center(
-          child: Container(
+          child: SizedBox(
             width: size,
             height: size,
             child: Stack(
@@ -107,7 +107,7 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
                   height: size,
                   child: CircularProgressIndicator(
                     value: progress,
-                    strokeWidth: size * 0.1, // 크기에 비례하여 선 두께 설정
+                    strokeWidth: size * 0.1,
                     backgroundColor: Colors.grey[300],
                     valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
                   ),

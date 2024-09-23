@@ -13,7 +13,6 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
   final BluetoothService _bluetoothService = BluetoothService();
   List<BluetoothDevice> _devicesList = [];
   BluetoothDevice? _selectedDevice;
-  bool _isConnecting = false;
 
   @override
   void initState() {
@@ -33,9 +32,11 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
     } catch (error) {
       print('Error getting bonded devices: $error');
     }
-    setState(() {
-      _devicesList = devices;
-    });
+    if (mounted) {
+      setState(() {
+        _devicesList = devices;
+      });
+    }
   }
 
   void _addDummyDevices() {
@@ -54,13 +55,8 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
 
   Future<void> _connectToDevice() async {
     if (_selectedDevice != null) {
-      setState(() {
-        _isConnecting = true;
-      });
       bool connected = await _bluetoothService.connectToPrinter(_selectedDevice!.address);
-      setState(() {
-        _isConnecting = false;
-      });
+      if (!mounted) return;
       if (connected) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('프린터에 연결되었습니다: ${_selectedDevice!.name}')),
