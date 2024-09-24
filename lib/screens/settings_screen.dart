@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:yaml/yaml.dart';
 import '../theme/theme_provider.dart';
 import 'info_screen.dart';
 import 'license_screen.dart'; // 라이선스 화면 import
@@ -17,11 +19,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _temperatureUnit = '섭씨';
   double _nozzleTemperature = 200.0;
   double _bedTemperature = 60.0;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _getAppVersion();
   }
 
   _loadSettings() async {
@@ -32,6 +36,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _nozzleTemperature = prefs.getDouble('nozzle_temperature') ?? 200.0;
       _bedTemperature = prefs.getDouble('bed_temperature') ?? 60.0;
     });
+  }
+
+  Future<void> _getAppVersion() async {
+    try {
+      final yamlString = await rootBundle.loadString('pubspec.yaml');
+      final yamlMap = loadYaml(yamlString);
+      final version = yamlMap['version'];
+      setState(() {
+        _appVersion = version ?? '버전 정보를 찾을 수 없습니다';
+      });
+    } catch (e) {
+      setState(() {
+        _appVersion = '버전 정보를 가져올 수 없습니다';
+      });
+    }
   }
 
   _saveSettings() async {
@@ -100,7 +119,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSectionHeader('정보'),
           ListTile(
             title: const Text('앱 버전'),
-            subtitle: const Text('1.0.0'),
+            subtitle: Text(_appVersion),
             trailing: const Icon(Icons.info_outline),
             onTap: () {
               Navigator.push(
