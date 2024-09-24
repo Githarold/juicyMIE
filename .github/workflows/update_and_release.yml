@@ -22,9 +22,9 @@ jobs:
       id: changed-files
       run: |
         if [ "${{ github.event_name }}" = "push" ]; then
-          echo "::set-output name=files::$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | tr '\n' ' ')"
+          echo "files=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | tr '\n' ' ')" >> $GITHUB_OUTPUT
         else
-          echo "::set-output name=files::$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')"
+          echo "files=$(git diff --name-only HEAD~1 HEAD | tr '\n' ' ')" >> $GITHUB_OUTPUT
         fi
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
@@ -86,8 +86,8 @@ jobs:
       - name: Get current version
         id: get_version
         run: |
-          CURRENT_VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d "'")
-          echo "::set-output name=version::$CURRENT_VERSION"
+          CURRENT_VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: *//')
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
       
       - name: Bump version
         id: bump_version
@@ -97,6 +97,13 @@ jobs:
       
       - name: Update changelog
         run: echo "- Automated release" >> CHANGELOG.md
+      
+      - name: Debug information
+        run: |
+          echo "Current version: ${{ steps.get_version.outputs.version }}"
+          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
+          echo "Current commit: ${{ github.sha }}"
+          cat pubspec.yaml
       
       - name: Commit changes
         run: |
@@ -115,6 +122,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
-          gh release create ${{ steps.bump_version.outputs.new_version }} \
-            -t "Release ${{ steps.bump_version.outputs.new_version }}" \
-            -n "Automated release from version ${{ steps.get_version.outputs.version }} to ${{ steps.bump_version.outputs.new_version }}"
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          gh release create "$NEW_VERSION" \
+            --target ${{ github.sha }} \
+            --title "Release $NEW_VERSION" \
+            --generate-notes

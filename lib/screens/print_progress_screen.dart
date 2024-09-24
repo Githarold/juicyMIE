@@ -58,35 +58,38 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: isConnected
-            ? Column(
-                mainAxisSize: MainAxisSize.max,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    flex: 7,
-                    child: _buildProgressIndicator(),
-                  ),
-                  const SizedBox(height: 24), // SizedBox로 공백 추가
-                  _buildStatusDetails(),
-                  const SizedBox(height: 24), // SizedBox로 공백 추가
-                  _buildTemperatureInfo(),
-                  const SizedBox(height: 24), // SizedBox로 공백 추가
-                  _buildControlButtons(),
-                ],
-              )
-            : Center(
-                child: Text(
-                  '프린터가 연결되지 않았습니다.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontSize: 18,
-                  ),
+      body: isConnected
+          ? SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.4,
+                      child: _buildProgressIndicator(),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildStatusDetails(),
+                    const SizedBox(height: 24),
+                    _buildTemperatureInfo(),
+                    const SizedBox(height: 24),
+                    _buildControlButtons(),
+                    const SizedBox(height: 24), // 추가 여백
+                  ],
                 ),
               ),
-      ),
+            )
+          : Center(
+              child: Text(
+                '프린터가 연결되지 않았습니다.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 18,
+                ),
+              ),
+            ),
     );
   }
 

@@ -238,11 +238,16 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
 
       if (result != null) {
         String fileName = result.files.single.name;
+        if (!fileName.toLowerCase().endsWith('.gcode')) {
+          throw Exception('지원되지 않는 파일 형식입니다. .gcode 파일만 업로드 가능합니다.');
+        }
+        
         if (kIsWeb) {
           await _fileService.uploadGCodeFileWeb(result.files.single.bytes!, fileName);
         } else {
           await _fileService.uploadGCodeFile(result.files.single.path!, fileName);
         }
+        
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('$fileName 업로드됨')),

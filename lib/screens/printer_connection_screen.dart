@@ -26,8 +26,9 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
   }
 
   Future<void> _getPairedDevices() async {
+    print("_getPairedDevices 함수 실행");
     if (kDebugMode) {
-      // 테스트 모드: 더미 데이터 사용
+      print("테스트 모드: 더미 데이터 사용");
       setState(() {
         _devicesList = [
           BluetoothDevice(name: "테스트 프린터 1", address: "00:11:22:33:44:55"),
@@ -35,9 +36,10 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
         ];
       });
     } else {
-      // 실제 환경: 페어링된 기기 가져오기
+      print("실제 환경: 페어링된 기기 가져오기");
       try {
         List<BluetoothDevice> devices = await FlutterBluetoothSerial.instance.getBondedDevices();
+        print("페어링된 기기 수: ${devices.length}");
         setState(() {
           _devicesList = devices;
         });
@@ -45,6 +47,7 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
         print('페어링된 기기를 가져오는 중 오류 발생: $error');
       }
     }
+    print("_devicesList 길이: ${_devicesList.length}");
   }
 
   Future<void> _scanForDevices() async {

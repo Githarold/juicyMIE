@@ -30,7 +30,7 @@ class MyApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: 'Pentastic',
+          title: 'Pentastics',
           theme: ThemeData.light(),
           darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
