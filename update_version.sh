@@ -10,19 +10,20 @@ MINOR=${VERSION_PARTS[1]}
 PATCH=${VERSION_PARTS[2]}
 
 # 버전 업데이트 로직
-if (( MINOR == 9 && PATCH == 9 )); then
-    # 1.9.9 형태일 때 MAJOR 버전 증가
-    MAJOR=$((MAJOR + 1))
-    MINOR=0
-    PATCH=0
-elif (( PATCH == 9 )); then
-    # x.x.9 형태일 때 MINOR 버전 증가
-    MINOR=$((MINOR + 1))
-    PATCH=0
+if (( PATCH == 9 )); then
+    if (( MINOR == 9 )); then
+        # 1.9.9 형태일 때 MAJOR 버전 증가
+        MAJOR=$((MAJOR + 1))
+        MINOR=0
+        PATCH=0
+    else
+        # x.x.9 형태일 때 MINOR 버전 증가
+        MINOR=$((MINOR + 1))
+        PATCH=0
+    fi
 else
-    # 그 외의 경우 MINOR 버전 증가
-    MINOR=$((MINOR + 1))
-    PATCH=0
+    # 그 외의 경우 PATCH 버전 증가
+    PATCH=$((PATCH + 1))
 fi
 
 # 새 버전 생성
