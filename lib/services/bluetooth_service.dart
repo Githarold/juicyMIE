@@ -1,19 +1,38 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter/foundation.dart';
 
 class BluetoothService {
+  bool _isTestMode = kDebugMode; // 디버그 모드일 때 테스트 모드 활성화
   BluetoothConnection? connection;
+  String _connectionStatus = '연결 안됨';
+  double _currentTemperature = 0.0;
+  double _currentBedTemperature = 0.0;
+
+  String get connectionStatus => _connectionStatus;
+  double get currentTemperature => _currentTemperature;
+  double get currentBedTemperature => _currentBedTemperature;
+
+  void setTestMode(bool isTestMode) {
+    _isTestMode = isTestMode;
+  }
 
   Future<bool> connectToPrinter(String address) async {
-    try {
-      connection = await BluetoothConnection.toAddress(address);
-      print('Connected to the printer');
+    if (_isTestMode) {
+      // 테스트 모드: 가상 연결 시뮬레이션
+      await Future.delayed(Duration(seconds: 2));
       return true;
-    } catch (error) {
-      print('Cannot connect, exception occurred');
-      print(error);
-      return false;
+    } else {
+      // 실제 연결 로직
+      try {
+        // 여기에 실제 블루투스 연결 코드 구현
+        // 예: FlutterBluetoothSerial.instance.connect(address)
+        await Future.delayed(Duration(seconds: 2)); // 실제 연결 시 이 줄 제거
+        return true;
+      } catch (e) {
+        print('블루투스 연결 오류: $e');
+        return false;
+      }
     }
   }
 
@@ -65,5 +84,16 @@ class BluetoothService {
       connection!.dispose();
       connection = null;
     }
+  }
+
+  // 온도 업데이트 메서드 (실제 사용 시 이 메서드를 호출하여 온도를 업데이트해야 합니다)
+  void updateTemperatures(double nozzleTemp, double bedTemp) {
+    _currentTemperature = nozzleTemp;
+    _currentBedTemperature = bedTemp;
+  }
+
+  // 연결 상태 업데이트 메서드
+  void updateConnectionStatus(String status) {
+    _connectionStatus = status;
   }
 }

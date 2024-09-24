@@ -8,18 +8,19 @@ import '../services/bluetooth_service.dart';
 import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final BluetoothService bluetoothService;
+
+  const HomeScreen({super.key, required this.bluetoothService});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final BluetoothService _bluetoothService = BluetoothService();
   bool isConnected = false;
   double? nozzleTemp;
   double? bedTemp;
-  late Timer? _updateTimer;
+  Timer? _updateTimer;
   static const Duration updateInterval = Duration(seconds: 5);
 
   @override
@@ -37,7 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkPrinterConnection() async {
     const String printerAddress = '00:00:00:00:00:00'; // 실제 프린터 주소로 변경해야 합니다
-    bool connected = await _bluetoothService.connectToPrinter(printerAddress);
+    bool connected = await widget.bluetoothService.connectToPrinter(printerAddress);
     setState(() {
       isConnected = connected;
     });
@@ -54,8 +55,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _updatePrinterStatus() async {
     if (isConnected) {
       try {
-        double nozzle = await _bluetoothService.getTemperature('nozzle');
-        double bed = await _bluetoothService.getTemperature('bed');
+        double nozzle = await widget.bluetoothService.getTemperature('nozzle');
+        double bed = await widget.bluetoothService.getTemperature('bed');
         setState(() {
           nozzleTemp = nozzle;
           bedTemp = bed;
@@ -81,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const InfoScreen()), // 정보 화면으로 이동
+                MaterialPageRoute(builder: (context) => const InfoScreen()),
               );
             },
           ),
@@ -244,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _updateTimer?.cancel();
-    _bluetoothService.disconnect();
+    widget.bluetoothService.disconnect();
     super.dispose();
   }
 }

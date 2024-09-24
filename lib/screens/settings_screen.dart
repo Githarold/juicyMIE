@@ -24,18 +24,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSettings();
-    _getAppVersion();
+    _loadSettings().then((_) {
+      _getAppVersion();
+    });
   }
 
-  _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-      _temperatureUnit = prefs.getString('temperature_unit') ?? '섭씨';
-      _nozzleTemperature = prefs.getDouble('nozzle_temperature') ?? 200.0;
-      _bedTemperature = prefs.getDouble('bed_temperature') ?? 60.0;
-    });
+  Future<void> _loadSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
+        _temperatureUnit = prefs.getString('temperature_unit') ?? '섭씨';
+        _nozzleTemperature = prefs.getDouble('nozzle_temperature') ?? 200.0;
+        _bedTemperature = prefs.getDouble('bed_temperature') ?? 60.0;
+      });
+    } catch (e) {
+      print('Error loading settings: $e');
+      // 기본값 설정
+      _notificationsEnabled = true;
+      _temperatureUnit = '섭씨';
+      _nozzleTemperature = 200.0;
+      _bedTemperature = 60.0;
+    }
   }
 
   Future<void> _getAppVersion() async {
@@ -53,7 +63,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  _saveSettings() async {
+  Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', _notificationsEnabled);
     await prefs.setString('temperature_unit', _temperatureUnit);
@@ -63,7 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final themeProvider = context.watch<ThemeProvider>();
     
     return Scaffold(
       appBar: AppBar(
@@ -134,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const LicenseScreen()), // 라이선스 화면으로 이동
+                MaterialPageRoute(builder: (context) => const LicenseScreen()),
               );
             },
           ),
@@ -213,9 +223,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     TextEditingController textController = TextEditingController(text: currentTemp.toStringAsFixed(1));
     double tempValue = currentTemp;
 
-    // 온도 단위에 따른 최소, 최대 온도 설정
     double minTemp = _temperatureUnit == '섭씨' ? 0 : 32;
-    double maxTemp = _temperatureUnit == '섭씨' ? 300 : 572; // 300°C는 약 572°F
+    double maxTemp = _temperatureUnit == '섭씨' ? 300 : 572;
 
     showDialog(
       context: context,

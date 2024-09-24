@@ -77,53 +77,55 @@ jobs:
             body: issueBody
           });
 
-  auto-release:
-    needs: check-updates-and-analyze
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.3'
-          channel: 'stable'
-      
-      - name: Install dependencies
-        run: |
-          flutter pub get
-          dart pub global activate cider
-      
-      - name: Get current version
-        id: get_version
-        run: |
-          CURRENT_VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d "'")
-          echo "::set-output name=version::$CURRENT_VERSION"
-      
-      - name: Bump version
-        run: cider bump patch
-      
-      - name: Update changelog
-        run: cider log add "Automated release"
-      
-      - name: Commit changes
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .
-          git commit -m "chore: Bump version and update changelog"
-      
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GIT_TOKEN }}
-          branch: ${{ github.ref }}
-      
-      - name: Create Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
-        run: |
-          NEW_VERSION=$(cider version)
-          gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release from version ${{ steps.get_version.outputs.version }} to $NEW_VERSION"
+auto-release:
+  needs: check-updates-and-analyze
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.3'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Get current version
+      id: get_version
+      run: |
+        CURRENT_VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d "'")
+        echo "::set-output name=version::$CURRENT_VERSION"
+    
+    - name: Bump version
+      id: bump_version
+      run: |
+        chmod +x ./update_version.sh
+        ./update_version.sh
+    
+    - name: Update changelog
+      run: echo "- Automated release" >> CHANGELOG.md
+    
+    - name: Commit changes
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git add pubspec.yaml CHANGELOG.md
+        git commit -m "chore: Bump version to ${{ steps.bump_version.outputs.new_version }} and update changelog"
+    
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.GIT_TOKEN }}
+        branch: ${{ github.ref }}
+    
+    - name: Create Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
+      run: |
+        gh release create ${{ steps.bump_version.outputs.new_version }} \
+          -t "Release ${{ steps.bump_version.outputs.new_version }}" \
+          -n "Automated release from version ${{ steps.get_version.outputs.version }} to ${{ steps.bump_version.outputs.new_version }}"

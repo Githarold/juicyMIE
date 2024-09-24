@@ -1,87 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/home_screen.dart';
-import 'theme/theme_provider.dart';
+import 'package:pentastic/theme/theme_provider.dart';
+import 'package:pentastic/screens/home_screen.dart';
+import 'package:pentastic/services/bluetooth_service.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  final bluetoothService = BluetoothService();
+  bluetoothService.setTestMode(true); // 테스트 모드 활성화
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      child: const PrinterControlApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        Provider<BluetoothService>.value(value: bluetoothService),
+      ],
+      child: MyApp(bluetoothService: bluetoothService),
     ),
   );
 }
 
-class PrinterControlApp extends StatelessWidget {
-  const PrinterControlApp({super.key});
+class MyApp extends StatelessWidget {
+  final BluetoothService bluetoothService;
+
+  const MyApp({super.key, required this.bluetoothService});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: '3D 프린터',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.light(
-              primary: Colors.blue,
-              onPrimary: Colors.white,
-              surface: Colors.grey[100]!,
-              onSurface: Colors.black,
-            ),
-            scaffoldBackgroundColor: Colors.grey[100],
-            cardTheme: CardTheme(
-              color: Colors.white,
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            iconTheme: const IconThemeData(color: Colors.blue),
-            textTheme: TextTheme(
-              headlineMedium: TextStyle(color: Colors.black),
-              titleMedium: TextStyle(color: Colors.black),
-              titleSmall: TextStyle(color: Colors.black),
-            ),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.blue,
-              iconTheme: const IconThemeData(color: Colors.white),
-              titleTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.dark(
-              primary: Colors.blue,
-              onPrimary: Colors.black,
-              surface: Colors.grey[900]!,
-              onSurface: Colors.white,
-            ),
-            scaffoldBackgroundColor: Colors.grey[900],
-            cardTheme: CardTheme(
-              color: Colors.grey[800],
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            iconTheme: const IconThemeData(color: Colors.blueAccent),
-            textTheme: TextTheme(
-              headlineMedium: TextStyle(color: Colors.white),
-              titleMedium: TextStyle(color: Colors.white),
-              titleSmall: TextStyle(color: Colors.white),
-            ),
-            appBarTheme: AppBarTheme(
-              backgroundColor: Colors.grey[900],
-              iconTheme: const IconThemeData(color: Colors.blueAccent),
-              titleTextStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          title: 'Pentastic',
+          theme: ThemeData.light(),
+          darkTheme: ThemeData.dark(),
           themeMode: themeProvider.themeMode,
-          home: const HomeScreen(),
+          home: HomeScreen(bluetoothService: bluetoothService),
         );
       },
     );
