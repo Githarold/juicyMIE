@@ -19,7 +19,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isConnected = false;
   double? nozzleTemp;
   double? bedTemp;
-  Timer? _updateTimer;
+  late Timer? _updateTimer;
+  static const Duration updateInterval = Duration(seconds: 5);
 
   @override
   void initState() {
@@ -29,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startPeriodicUpdate() {
-    _updateTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+    _updateTimer = Timer.periodic(updateInterval, (timer) {
       _updatePrinterStatus();
     });
   }
@@ -53,8 +54,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _updatePrinterStatus() async {
     if (isConnected) {
       try {
-        double nozzle = await _bluetoothService.getNozzleTemperature();
-        double bed = await _bluetoothService.getBedTemperature();
+        double nozzle = await _bluetoothService.getTemperature('nozzle');
+        double bed = await _bluetoothService.getTemperature('bed');
         setState(() {
           nozzleTemp = nozzle;
           bedTemp = bed;

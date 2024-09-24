@@ -31,23 +31,12 @@ class BluetoothService {
     }
   }
 
-  Future<double> getNozzleTemperature() async {
+  Future<double> getTemperature(String type) async {
     if (connection != null && connection!.isConnected) {
       await sendGCode('M105'); // 온도 정보 요청 G-code
       // 여기에 프린터로부터 응답을 받아 파싱하는 로직을 구현해야 합니다.
       // 임시로 더미 데이터를 반환합니다.
-      return 200.0;
-    } else {
-      throw Exception('프린터에 연결되어 있지 않습니다.');
-    }
-  }
-
-  Future<double> getBedTemperature() async {
-    if (connection != null && connection!.isConnected) {
-      await sendGCode('M105'); // 온도 정보 요청 G-code
-      // 여기에 프린터로부터 응답을 받아 파싱하는 로직을 구현해야 합니다.
-      // 임시로 더미 데이터를 반환합니다.
-      return 60.0;
+      return type == 'nozzle' ? 200.0 : 60.0;
     } else {
       throw Exception('프린터에 연결되어 있지 않습니다.');
     }

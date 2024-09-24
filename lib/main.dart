@@ -20,7 +20,7 @@ class PrinterControlApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         return MaterialApp(
-          title: '3D ss프린터',
+          title: '3D 프린터',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             colorScheme: ColorScheme.light(

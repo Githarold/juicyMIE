@@ -5,7 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:yaml/yaml.dart';
 import '../theme/theme_provider.dart';
 import 'info_screen.dart';
-import 'license_screen.dart'; // 라이선스 화면 import
+import 'license_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
