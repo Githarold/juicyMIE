@@ -96,6 +96,12 @@ jobs:
           flutter pub get
           dart pub global activate cider
       
+      - name: Get current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep 'version:' pubspec.yaml | awk '{print $2}' | tr -d "'")
+          echo "::set-output name=version::$CURRENT_VERSION"
+      
       - name: Bump version
         run: cider bump patch
       
@@ -120,4 +126,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
           NEW_VERSION=$(cider version)
-          gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release"
+          gh release create $NEW_VERSION -t "Release $NEW_VERSION" -n "Automated release from version ${{ steps.get_version.outputs.version }} to $NEW_VERSION"
