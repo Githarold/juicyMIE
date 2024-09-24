@@ -4,9 +4,70 @@ import 'print_progress_screen.dart';
 import 'settings_screen.dart';
 import 'printer_connection_screen.dart';
 import 'info_screen.dart';
+import '../services/bluetooth_service.dart';
+import 'dart:async';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final BluetoothService _bluetoothService = BluetoothService();
+  bool isConnected = false;
+  double? nozzleTemp;
+  double? bedTemp;
+  Timer? _updateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPrinterConnection();
+    _startPeriodicUpdate();
+  }
+
+  void _startPeriodicUpdate() {
+    _updateTimer = Timer.periodic(Duration(seconds: 5), (timer) {
+      _updatePrinterStatus();
+    });
+  }
+
+  Future<void> _checkPrinterConnection() async {
+    const String printerAddress = '00:00:00:00:00:00'; // 실제 프린터 주소로 변경해야 합니다
+    bool connected = await _bluetoothService.connectToPrinter(printerAddress);
+    setState(() {
+      isConnected = connected;
+    });
+    if (connected) {
+      _updatePrinterStatus();
+    } else {
+      setState(() {
+        nozzleTemp = null;
+        bedTemp = null;
+      });
+    }
+  }
+
+  Future<void> _updatePrinterStatus() async {
+    if (isConnected) {
+      try {
+        double nozzle = await _bluetoothService.getNozzleTemperature();
+        double bed = await _bluetoothService.getBedTemperature();
+        setState(() {
+          nozzleTemp = nozzle;
+          bedTemp = bed;
+        });
+      } catch (e) {
+        print('온도 업데이트 중 오류 발생: $e');
+        setState(() {
+          nozzleTemp = null;
+          bedTemp = null;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,33 +106,49 @@ class HomeScreen extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('상태:', style: TextStyle(fontSize: 16)),
-                Text('연결됨', style: TextStyle(color: Colors.green[700], fontSize: 16)),
+                Text('프린터 상태', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                _buildStatusChip(isConnected ? '연결됨' : '연결 안됨', isConnected ? Colors.green : Colors.red),
               ],
             ),
+            const SizedBox(height: 16),
+            _buildTemperatureRow('노즐 온도', nozzleTemp, 250),
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text('노즐 온도:', style: TextStyle(fontSize: 16)),
-                Text('200°C', style: TextStyle(fontSize: 16)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Text('베드 온도:', style: TextStyle(fontSize: 16)),
-                Text('60°C', style: TextStyle(fontSize: 16)),
-              ],
-            ),
+            _buildTemperatureRow('베드 온도', bedTemp, 100),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusChip(String label, Color color) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: Colors.white, fontSize: 14),
+      ),
+    );
+  }
+
+  Widget _buildTemperatureRow(String label, double? temperature, double maxTemp) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label),
+        Text(
+          temperature != null ? '${temperature.toStringAsFixed(1)}°C' : '-- °C',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 
@@ -161,5 +238,12 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    _bluetoothService.disconnect();
+    super.dispose();
   }
 }

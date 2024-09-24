@@ -152,7 +152,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: '섭씨',
                 groupValue: _temperatureUnit,
                 onChanged: (value) {
-                  setState(() => _temperatureUnit = value.toString());
+                  setState(() {
+                    _temperatureUnit = value.toString();
+                    _convertTemperatures(toCelsius: true);
+                  });
                   _saveSettings();
                   Navigator.of(context).pop();
                 },
@@ -162,7 +165,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value: '화씨',
                 groupValue: _temperatureUnit,
                 onChanged: (value) {
-                  setState(() => _temperatureUnit = value.toString());
+                  setState(() {
+                    _temperatureUnit = value.toString();
+                    _convertTemperatures(toCelsius: false);
+                  });
                   _saveSettings();
                   Navigator.of(context).pop();
                 },
@@ -174,8 +180,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _convertTemperatures({required bool toCelsius}) {
+    if (toCelsius) {
+      _nozzleTemperature = (_nozzleTemperature - 32) * 5 / 9;
+      _bedTemperature = (_bedTemperature - 32) * 5 / 9;
+    } else {
+      _nozzleTemperature = (_nozzleTemperature * 9 / 5) + 32;
+      _bedTemperature = (_bedTemperature * 9 / 5) + 32;
+    }
+  }
+
   void _showTemperatureDialog(String type, double currentTemp, Function(double) onChanged) {
     TextEditingController textController = TextEditingController(text: currentTemp.toStringAsFixed(1));
+    double tempValue = currentTemp;
+
+    // 온도 단위에 따른 최소, 최대 온도 설정
+    double minTemp = _temperatureUnit == '섭씨' ? 0 : 32;
+    double maxTemp = _temperatureUnit == '섭씨' ? 300 : 572; // 300°C는 약 572°F
 
     showDialog(
       context: context,
@@ -188,14 +209,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Slider(
-                    value: currentTemp,
-                    min: 0,
-                    max: 300,
+                    value: tempValue.clamp(minTemp, maxTemp),
+                    min: minTemp,
+                    max: maxTemp,
                     divisions: 300,
-                    label: currentTemp.round().toString(),
+                    label: tempValue.round().toString(),
                     onChanged: (double value) {
                       setState(() {
-                        currentTemp = value;
+                        tempValue = value;
                         textController.text = value.toStringAsFixed(1);
                       });
                     },
@@ -211,9 +232,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onChanged: (value) {
                       double? newTemp = double.tryParse(value);
-                      if (newTemp != null && newTemp >= 0 && newTemp <= 300) {
+                      if (newTemp != null) {
                         setState(() {
-                          currentTemp = newTemp;
+                          tempValue = newTemp.clamp(minTemp, maxTemp);
                         });
                       }
                     },
@@ -228,12 +249,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ElevatedButton(
                   child: const Text('확인'),
                   onPressed: () {
-                    double? finalTemp = double.tryParse(textController.text);
-                    if (finalTemp != null && finalTemp >= 0 && finalTemp <= 300) {
-                      onChanged(finalTemp);
-                    } else {
-                      onChanged(currentTemp);
-                    }
+                    double finalTemp = tempValue.clamp(minTemp, maxTemp);
+                    onChanged(finalTemp);
                     Navigator.of(context).pop();
                   },
                 ),

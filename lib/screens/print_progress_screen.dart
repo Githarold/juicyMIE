@@ -96,39 +96,33 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
         final double size = constraints.maxWidth * 0.6;
 
         return Center(
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: size,
-                  height: size,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: size * 0.1,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
-                  ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: size,
+                height: size,
+                child: CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: size * 0.1,
+                  backgroundColor: Colors.grey[300],
+                  valueColor: AlwaysStoppedAnimation<Color>(getProgressColor(progress)),
                 ),
-                Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        '${(progress * 100).toStringAsFixed(1)}%',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      Text(
-                        status,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${(progress * 100).toStringAsFixed(1)}%',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
-            ),
+                  Text(
+                    status,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
