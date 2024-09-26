@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
-class BluetoothService {
-  bool _isTestMode = kDebugMode; // 디버그 모드일 때 테스트 모드 활성화
+class BluetoothService extends ChangeNotifier {
   BluetoothConnection? connection;
+  StreamSubscription<Uint8List>? _dataSubscription;
   String _connectionStatus = '연결 안됨';
   double _currentTemperature = 0.0;
   double _currentBedTemperature = 0.0;
@@ -13,27 +14,70 @@ class BluetoothService {
   double get currentTemperature => _currentTemperature;
   double get currentBedTemperature => _currentBedTemperature;
 
-  void setTestMode(bool isTestMode) {
-    _isTestMode = isTestMode;
-  }
-
   Future<bool> connectToPrinter(String address) async {
-    if (_isTestMode) {
-      // 테스트 모드: 가상 연결 시뮬레이션
-      await Future.delayed(Duration(seconds: 2));
-      return true;
-    } else {
-      // 실제 연결 로직
+    int retries = 3;
+    while (retries > 0) {
       try {
-        // 여기에 실제 블루투스 연결 코드 구현
-        // 예: FlutterBluetoothSerial.instance.connect(address)
-        await Future.delayed(Duration(seconds: 2)); // 실제 연결 시 이 줄 제거
-        return true;
+        connection = await BluetoothConnection.toAddress(address).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => throw TimeoutException('연결 시간 초과'),
+        );
+        if (connection != null && connection!.isConnected) {
+          _connectionStatus = '연결됨';
+          _dataSubscription = connection!.input!.listen(_onDataReceived);
+          notifyListeners();
+          return true;
+        }
+      } on TimeoutException catch (e) {
+        print('블루투스 연결 타임아웃: $e');
       } catch (e) {
         print('블루투스 연결 오류: $e');
-        return false;
+      }
+      retries--;
+      if (retries > 0) {
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
+    _connectionStatus = '연결 실패';
+    notifyListeners();
+    return false;
+  }
+
+  void _onDataReceived(Uint8List data) {
+    String message = utf8.decode(data);
+    _parseMessage(message);
+  }
+
+  void _parseMessage(String message) {
+    if (message.startsWith('T:')) {
+      // 온도 정보 파싱
+      // 예: T:200.0 /200.0 B:60.0 /60.0
+      List<String> parts = message.split(' ');
+      _currentTemperature = double.parse(parts[0].split(':')[1]);
+      _currentBedTemperature = double.parse(parts[2].split(':')[1]);
+    } else if (message.startsWith('X:')) {
+      // 위치 정보 파싱
+    } else if (message.startsWith('SD printing byte')) {
+      // 출력 진행 상황 파싱
+    }
+    notifyListeners();
+  }
+
+  Future<void> requestTemperature() async {
+    await sendCommand('M105');
+  }
+
+  Future<void> requestPosition() async {
+    await sendCommand('M114');
+  }
+
+  Future<void> requestPrintStatus() async {
+    await sendCommand('M27');
+  }
+
+  Future<void> sendCommand(String command) async {
+    connection?.output.add(utf8.encode('$command\n'));
+    await connection?.output.allSent;
   }
 
   Future<void> sendGCode(String gcode) async {
@@ -46,7 +90,21 @@ class BluetoothService {
         print('Error sending G-code: $error');
       }
     } else {
-      print('Not connected to printer');
+      throw Exception('프린터에 연결되어 있지 않습니다.');
+    }
+  }
+
+  Future<void> startPrinting(String fileName) async {
+    if (connection != null && connection!.isConnected) {
+      try {
+        await sendGCode('M23 $fileName'); // 파일 선택
+        await sendGCode('M24'); // 출력 시작
+        print('Started printing $fileName');
+      } catch (error) {
+        print('Error starting print: $error');
+      }
+    } else {
+      throw Exception('프린터에 연결되어 있지 않습니다.');
     }
   }
 
@@ -61,39 +119,27 @@ class BluetoothService {
     }
   }
 
-  Future<void> startPrinting(String fileName) async {
-    if (connection != null && connection!.isConnected) {
-      try {
-        // 여기에 실제 G-code 파일을 읽고 전송하는 로직을 구현합니다.
-        // 예를 들어:
-        // 1. 파일 시스템에서 G-code 파일을 읽습니다.
-        // 2. 파일의 각 라인을 sendGCode 메서드를 사용하여 전송합니다.
-        await sendGCode('M23 $fileName'); // 파일 선택
-        await sendGCode('M24'); // 출력 시작
-        print('Started printing $fileName');
-      } catch (error) {
-        print('Error starting print: $error');
-      }
-    } else {
-      print('Not connected to printer');
-    }
-  }
-
   void disconnect() {
-    if (connection != null) {
-      connection!.dispose();
-      connection = null;
-    }
+    _dataSubscription?.cancel();
+    connection?.close();
+    connection = null;
+    _connectionStatus = '연결 안됨';
+    notifyListeners();
   }
 
-  // 온도 업데이트 메서드 (실제 사용 시 이 메서드를 호출하여 온도를 업데이트해야 합니다)
-  void updateTemperatures(double nozzleTemp, double bedTemp) {
-    _currentTemperature = nozzleTemp;
-    _currentBedTemperature = bedTemp;
+  void updateTemperatures(double nozzle, double bed) {
+    _currentTemperature = nozzle;
+    _currentBedTemperature = bed;
+    notifyListeners();
   }
 
-  // 연결 상태 업데이트 메서드
-  void updateConnectionStatus(String status) {
-    _connectionStatus = status;
+  bool isConnected() {
+    return connection != null && connection!.isConnected;
+  }
+
+  @override
+  void dispose() {
+    _dataSubscription?.cancel();
+    super.dispose();
   }
 }

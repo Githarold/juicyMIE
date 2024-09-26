@@ -7,13 +7,12 @@ import 'package:pentastic/services/bluetooth_service.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final bluetoothService = BluetoothService();
-  bluetoothService.setTestMode(true); // 테스트 모드 활성화
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        Provider<BluetoothService>.value(value: bluetoothService),
+        ChangeNotifierProvider.value(value: bluetoothService),
       ],
       child: MyApp(bluetoothService: bluetoothService),
     ),

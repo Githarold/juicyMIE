@@ -1,41 +1,102 @@
 import 'package:flutter/material.dart';
+import 'package:yaml/yaml.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:url_launcher/url_launcher.dart';
 
-class LicenseScreen extends StatelessWidget {
+class LicenseScreen extends StatefulWidget {
   const LicenseScreen({super.key});
+
+  @override
+  State<LicenseScreen> createState() => _LicenseScreenState();
+}
+
+class _LicenseScreenState extends State<LicenseScreen> {
+  Map<String, String> dependencies = {};
+  String flutterVersion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDependencies();
+  }
+
+  Future<void> _loadDependencies() async {
+    final yamlString = await rootBundle.loadString('pubspec.yaml');
+    final yamlMap = loadYaml(yamlString);
+    final deps = yamlMap['dependencies'] as YamlMap;
+    final environment = yamlMap['environment'] as YamlMap;
+
+    setState(() {
+      dependencies = Map<String, String>.from(deps.map((key, value) {
+        if (value is String) {
+          return MapEntry(key, value);
+        } else if (value is YamlMap) {
+          return MapEntry(key, value['version'] ?? 'Unknown');
+        }
+        return MapEntry(key, 'Unknown');
+      }));
+
+      // Flutter SDK 버전 정보 추가
+      flutterVersion = environment['sdk'] ?? 'Unknown';
+      dependencies['flutter'] = '3.24.3'; // Flutter SDK 버전을 수동으로 설정
+    });
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url)) {
+      throw '라이브러리 페이지를 열 수 없습니다: $url';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('오픈소스 라이선스'),
+        elevation: 0,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              '오픈소스 라이선스',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 16),
-            Text(
-              '이 앱은 다음 오픈소스 라이브러리를 사용합니다:',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
-            Text(
-              '1. provider: 5.0.0\n'
-              '2. shared_preferences: 2.0.6\n'
-              '3. flutter: 2.2.3\n',
-              style: TextStyle(fontSize: 16),
-            ),
-            SizedBox(height: 16),
-            Text(
-              '각 라이브러리의 라이선스는 해당 라이브러리의 GitHub 페이지에서 확인할 수 있습니다.',
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '사용된 오픈소스 라이브러리',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '이 앱은 다음 오픈소스 라이브러리를 사용합니다:',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: dependencies.length,
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final entry = dependencies.entries.elementAt(index);
+                    return ListTile(
+                      title: Text(
+                        entry.key,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text('버전: ${entry.value}'),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: () => _launchUrl('https://pub.dev/packages/${entry.key}'),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '각 라이브러리를 탭하면 해당 라이브러리의 pub.dev 페이지로 이동합니다.',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
       ),
     );

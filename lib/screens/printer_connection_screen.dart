@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import '../services/bluetooth_service.dart';
-import 'package:flutter/foundation.dart';
 
 class PrinterConnectionScreen extends StatefulWidget {
   const PrinterConnectionScreen({super.key});
@@ -12,8 +11,9 @@ class PrinterConnectionScreen extends StatefulWidget {
 
 class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
   final BluetoothService _bluetoothService = BluetoothService();
-  List<BluetoothDevice> _devicesList = [];
-  BluetoothDevice? _selectedDevice;
+  List<BluetoothDevice> _pairedDevices = [];
+  final List<BluetoothDiscoveryResult> _discoveredDevices = [];
+  bool _isScanning = false;
 
   @override
   void initState() {
@@ -26,52 +26,101 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
   }
 
   Future<void> _getPairedDevices() async {
-    print("_getPairedDevices 함수 실행");
-    if (kDebugMode) {
-      print("테스트 모드: 더미 데이터 사용");
+    try {
+      List<BluetoothDevice> devices = await FlutterBluetoothSerial.instance.getBondedDevices();
       setState(() {
-        _devicesList = [
-          BluetoothDevice(name: "테스트 프린터 1", address: "00:11:22:33:44:55"),
-          BluetoothDevice(name: "테스트 프린터 2", address: "AA:BB:CC:DD:EE:FF"),
-        ];
+        _pairedDevices = devices;
       });
-    } else {
-      print("실제 환경: 페어링된 기기 가져오기");
-      try {
-        List<BluetoothDevice> devices = await FlutterBluetoothSerial.instance.getBondedDevices();
-        print("페어링된 기기 수: ${devices.length}");
-        setState(() {
-          _devicesList = devices;
-        });
-      } catch (error) {
-        print('페어링된 기기를 가져오는 중 오류 발생: $error');
-      }
+    } catch (error) {
+      print('페어링된 기기를 가져오는 중 오류 발생: $error');
     }
-    print("_devicesList 길이: ${_devicesList.length}");
   }
 
   Future<void> _scanForDevices() async {
-    // 주변 기기 찾기 로직 구현
-    // 이 부분은 실제 블루투스 스캔 기능을 구현할 때 작성하면 됩니다.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('주변 기기 스캔 중...')),
-    );
-  }
+    if (!mounted) return;
+    setState(() {
+      _isScanning = true;
+      _discoveredDevices.clear();
+    });
 
-  Future<void> _connectToDevice() async {
-    if (_selectedDevice != null) {
-      bool connected = await _bluetoothService.connectToPrinter(_selectedDevice!.address);
-      if (!mounted) return;
-      if (connected) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('프린터에 연결되었습니다: ${_selectedDevice!.name}')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('프린터에 연결할 수 없습니다: ${_selectedDevice!.name}')),
-        );
+    try {
+      await for (final r in FlutterBluetoothSerial.instance.startDiscovery()) {
+        if (!mounted) break;
+        setState(() {
+          final existingIndex = _discoveredDevices.indexWhere((element) => element.device.address == r.device.address);
+          if (existingIndex >= 0) {
+            _discoveredDevices[existingIndex] = r;
+          } else {
+            _discoveredDevices.add(r);
+          }
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isScanning = false;
+        });
       }
     }
+  }
+
+  Future<void> _connectToDevice(BluetoothDevice device) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${device.name}에 연결 중...')),
+    );
+    
+    bool connected = await _bluetoothService.connectToPrinter(device.address);
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).clearSnackBars();
+    if (connected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('프린터에 연결되었습니다: ${device.name}')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('프린터에 연결할 수 없습니다: ${device.name}. 다시 시도해주세요.'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: '재시도',
+            onPressed: () => _connectToDevice(device),
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _buildDeviceList(String title, List<BluetoothDevice> devices) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: devices.length,
+          itemBuilder: (context, index) {
+            final device = devices[index];
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                title: Text(device.name ?? '알 수 없는 기기', style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(device.address),
+                trailing: IconButton(
+                  icon: const Icon(Icons.bluetooth, color: Colors.blue),
+                  onPressed: () => _connectToDevice(device),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -81,52 +130,25 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
         title: const Text('프린터 연결'),
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              _devicesList.isEmpty
-                  ? const SizedBox(
-                      height: 200,
-                      child: Center(child: Text('페어링된 기기가 없습니다.')),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _devicesList.length,
-                      itemBuilder: (context, index) {
-                        final device = _devicesList[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            title: Text(device.name ?? '알 수 없는 기기', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text(device.address),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.bluetooth, color: Colors.blue),
-                              onPressed: () {
-                                setState(() {
-                                  _selectedDevice = device;
-                                });
-                                _connectToDevice();
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _scanForDevices,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDeviceList('페어링된 기기', _pairedDevices),
+            const SizedBox(height: 16),
+            _buildDeviceList('발견된 기기', _discoveredDevices.map((r) => r.device).toList()),
+            const SizedBox(height: 16),
+            Center(
+              child: ElevatedButton(
+                onPressed: _isScanning ? null : _scanForDevices,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   textStyle: const TextStyle(fontSize: 18),
                 ),
-                child: const Text('주변 기기 찾기'),
+                child: Text(_isScanning ? '스캔 중...' : '주변 기기 찾기'),
               ),
-              const SizedBox(height: 16), // 버튼 아래에 여백 추가
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

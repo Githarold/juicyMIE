@@ -6,6 +6,7 @@ import 'printer_connection_screen.dart';
 import 'info_screen.dart';
 import '../services/bluetooth_service.dart';
 import 'dart:async';
+import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
   final BluetoothService bluetoothService;
@@ -17,91 +18,77 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool isConnected = false;
-  double? nozzleTemp;
-  double? bedTemp;
   Timer? _updateTimer;
-  static const Duration updateInterval = Duration(seconds: 5);
+  final Duration _updateInterval = const Duration(seconds: 5);
 
   @override
   void initState() {
     super.initState();
-    _checkPrinterConnection();
     _startPeriodicUpdate();
   }
 
   void _startPeriodicUpdate() {
-    _updateTimer = Timer.periodic(updateInterval, (timer) {
-      _updatePrinterStatus();
+    _updateTimer = Timer.periodic(_updateInterval, (timer) async {
+      await updatePrinterStatus();
     });
   }
 
-  Future<void> _checkPrinterConnection() async {
-    const String printerAddress = '00:00:00:00:00:00'; // 실제 프린터 주소로 변경해야 합니다
-    bool connected = await widget.bluetoothService.connectToPrinter(printerAddress);
-    setState(() {
-      isConnected = connected;
-    });
-    if (connected) {
-      _updatePrinterStatus();
-    } else {
-      setState(() {
-        nozzleTemp = null;
-        bedTemp = null;
-      });
-    }
-  }
-
-  Future<void> _updatePrinterStatus() async {
-    if (isConnected) {
+  Future<void> updatePrinterStatus() async {
+    if (widget.bluetoothService.isConnected()) {
       try {
         double nozzle = await widget.bluetoothService.getTemperature('nozzle');
         double bed = await widget.bluetoothService.getTemperature('bed');
-        setState(() {
-          nozzleTemp = nozzle;
-          bedTemp = bed;
-        });
+        widget.bluetoothService.updateTemperatures(nozzle, bed);
       } catch (e) {
         print('온도 업데이트 중 오류 발생: $e');
-        setState(() {
-          nozzleTemp = null;
-          bedTemp = null;
-        });
       }
     }
+    setState(() {}); // UI 업데이트
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('과즙 MIE'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const InfoScreen()),
-              );
-            },
+    return Consumer<BluetoothService>(
+      builder: (context, bluetoothService, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('과즙 MIE'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.info_outline),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const InfoScreen()),
+                  );
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            _buildPrinterStatusCard(context),
-            const SizedBox(height: 24),
-            _buildQuickActionsGrid(context),
-          ],
-        ),
-      ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: _buildPrinterStatusCard(context),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  flex: 3,
+                  child: _buildQuickActionsGrid(context),
+                ),
+                const SizedBox(height: 16), // 하단 여백 추가
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildPrinterStatusCard(BuildContext context) {
+    bool isConnected = widget.bluetoothService.isConnected();
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -113,21 +100,39 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('프린터 상태', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                _buildStatusChip(isConnected ? '연결됨' : '연결 안됨', isConnected ? Colors.green : Colors.red),
+                Text('프린터 상태', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                _buildStatusChip(widget.bluetoothService.connectionStatus),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildTemperatureRow('노즐 온도', nozzleTemp, 250),
-            const SizedBox(height: 8),
-            _buildTemperatureRow('베드 온도', bedTemp, 100),
+            const SizedBox(height: 24),
+            if (isConnected) ...[
+              _buildTemperatureRow('노즐 온도', widget.bluetoothService.currentTemperature, 250),
+              const SizedBox(height: 16),
+              _buildTemperatureRow('베드 온도', widget.bluetoothService.currentBedTemperature, 100),
+              const SizedBox(height: 24),
+              Text('프린터 모델: 과즙 MIE V1', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 8),
+              Text('펌웨어 버전: 1.2.3', style: TextStyle(fontSize: 18)),
+            ] else
+              Text('프린터에 연결되어 있지 않습니다.', style: TextStyle(color: Colors.red, fontSize: 18)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusChip(String label, Color color) {
+  Widget _buildStatusChip(String status) {
+    Color color;
+    switch (status) {
+      case '연결됨':
+        color = Colors.green;
+        break;
+      case '연결 중':
+        color = Colors.orange;
+        break;
+      default:
+        color = Colors.red;
+    }
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -135,86 +140,122 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        label,
+        status,
         style: TextStyle(color: Colors.white, fontSize: 14),
       ),
     );
   }
 
   Widget _buildTemperatureRow(String label, double? temperature, double maxTemp) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label),
-        Text(
-          temperature != null ? '${temperature.toStringAsFixed(1)}°C' : '-- °C',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: TextStyle(fontSize: 16)),
+            Text(
+              temperature != null ? '${temperature.toStringAsFixed(1)}°C' : '-- °C',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        _buildTemperatureBar(temperature, maxTemp),
+      ],
+    );
+  }
+
+  Widget _buildTemperatureBar(double? temperature, double maxTemp) {
+    final double progress = (temperature ?? 0) / maxTemp;
+    return Stack(
+      children: [
+        Container(
+          height: 10,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(5),
+          ),
+        ),
+        FractionallySizedBox(
+          widthFactor: progress.clamp(0.0, 1.0),
+          child: Container(
+            height: 10,
+            decoration: BoxDecoration(
+              color: _getTemperatureColor(progress),
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
         ),
       ],
     );
   }
 
+  Color _getTemperatureColor(double progress) {
+    if (progress < 0.3) return Colors.blue;
+    if (progress < 0.7) return Colors.green;
+    return Colors.red;
+  }
+
   Widget _buildQuickActionsGrid(BuildContext context) {
-    return Expanded(
-      child: GridView.builder(
-        itemCount: 4,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 1.2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-        ),
-        itemBuilder: (context, index) {
-          switch (index) {
-            case 0:
-              return _buildQuickActionCard(
-                context,
-                '새 프린트 시작',
-                Icons.play_arrow,
-                Colors.blue,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const GCodeManagementScreen()),
-                ),
-              );
-            case 1:
-              return _buildQuickActionCard(
-                context,
-                '진행 중인 프린트',
-                Icons.assessment,
-                Colors.orange,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PrintProgressScreen()),
-                ),
-              );
-            case 2:
-              return _buildQuickActionCard(
-                context,
-                '설정',
-                Icons.settings,
-                Colors.grey,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                ),
-              );
-            case 3:
-              return _buildQuickActionCard(
-                context,
-                '프린터 연결',
-                Icons.bluetooth,
-                Colors.green,
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PrinterConnectionScreen()),
-                ),
-              );
-            default:
-              return Container();
-          }
-        },
+    return GridView.builder(
+      itemCount: 4,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.3,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
       ),
+      itemBuilder: (context, index) {
+        switch (index) {
+          case 0:
+            return _buildQuickActionCard(
+              context,
+              '새 프린트 시작',
+              Icons.play_arrow,
+              Colors.blue,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const GCodeManagementScreen()),
+              ),
+            );
+          case 1:
+            return _buildQuickActionCard(
+              context,
+              '진행 중인 프린트',
+              Icons.assessment,
+              Colors.orange,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PrintProgressScreen()),
+              ),
+            );
+          case 2:
+            return _buildQuickActionCard(
+              context,
+              '설정',
+              Icons.settings,
+              Colors.grey,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              ),
+            );
+          case 3:
+            return _buildQuickActionCard(
+              context,
+              '프린터 연결',
+              Icons.bluetooth,
+              Colors.green,
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PrinterConnectionScreen()),
+              ),
+            );
+          default:
+            return Container();
+        }
+      },
     );
   }
 
@@ -229,11 +270,11 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: Colors.white),
-            const SizedBox(height: 12),
+            Icon(icon, size: 48, color: Colors.white),
+            const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
               textAlign: TextAlign.center,
             ),
           ],

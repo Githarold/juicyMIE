@@ -102,7 +102,7 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
   void _startPrinting(Map<String, String> file) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('출력 시작'),
           content: Text('${file['name']} 파일의 출력을 시작하시겠습니까?'),
@@ -110,13 +110,13 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
             TextButton(
               child: const Text('취소'),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
               },
             ),
             TextButton(
               child: const Text('시작'),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.of(dialogContext).pop();
                 _startPrintingProcess(file);
               },
             ),
@@ -127,28 +127,17 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
   }
 
   Future<void> _startPrintingProcess(Map<String, String> file) async {
-    if (kIsWeb) {
-      // 웹 환경에서의 출력 처리
+    try {
+      await _bluetoothService.startPrinting(file['name']!);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('웹에서 ${file['name']} 파일 출력을 시뮬레이션합니다.')),
+        SnackBar(content: Text('${file['name']} 출력을 시작합니다.')),
       );
-      // 여기에 웹에서의 출력 로직을 추가할 수 있습니다.
-    } else {
-      // 네이티브 환경에서의 출력 처리
-      if (_bluetoothService.connection != null && _bluetoothService.connection!.isConnected) {
-        await _bluetoothService.startPrinting(file['name']!);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${file['name']} 출력이 시작되었습니다.')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('프린터에 연결되지 않았습니다.')),
-          );
-        }
-      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('출력 시작 실패: $e')),
+      );
     }
   }
 

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/bluetooth_service.dart';
+import 'dart:math';
+import 'dart:async';
 
 class PrintProgressScreen extends StatefulWidget {
   final bool isTestMode;
@@ -11,15 +13,19 @@ class PrintProgressScreen extends StatefulWidget {
 }
 
 class PrintProgressScreenState extends State<PrintProgressScreen> {
-  double progress = 0.65;
+  double progress = 0.0;
   String status = '출력 중';
-  int currentLayer = 42;
+  int currentLayer = 0;
   int totalLayers = 100;
   double nozzleTemp = 200.5;
   double bedTemp = 60.0;
   bool isConnected = true;
   final BluetoothService _bluetoothService = BluetoothService();
   bool isPaused = false;
+  Timer? _updateTimer;
+  final Random _random = Random();
+  double nozzleTargetTemp = 200.0;
+  double bedTargetTemp = 60.0;
 
   @override
   void initState() {
@@ -27,6 +33,35 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
     if (!widget.isTestMode) {
       _checkPrinterConnection();
     }
+    _updateRandomValues();
+    _startPeriodicUpdate();
+  }
+
+  void _startPeriodicUpdate() {
+    _updateTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _updateRandomValues();
+    });
+  }
+
+  void _updateRandomValues() {
+    setState(() {
+      progress = _random.nextDouble();
+      currentLayer = (progress * totalLayers).round();
+      
+      // 노즐 온도 업데이트
+      if (nozzleTemp < nozzleTargetTemp) {
+        nozzleTemp = min(nozzleTemp + 5, nozzleTargetTemp);
+      } else {
+        nozzleTemp = nozzleTargetTemp + (_random.nextDouble() - 0.5) * 2;
+      }
+      
+      // 베드 온도 업데이트
+      if (bedTemp < bedTargetTemp) {
+        bedTemp = min(bedTemp + 2, bedTargetTemp);
+      } else {
+        bedTemp = bedTargetTemp + (_random.nextDouble() - 0.5) * 1;
+      }
+    });
   }
 
   Future<void> _checkPrinterConnection() async {
@@ -276,5 +311,11 @@ class PrintProgressScreenState extends State<PrintProgressScreen> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _updateTimer?.cancel();
+    super.dispose();
   }
 }
