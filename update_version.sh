@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 현재 버전 가져오기
-CURRENT_VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: *//')
+CURRENT_VERSION=$(grep 'version: ' pubspec.yaml | sed 's/version: *//')
 
 # 버전을 부분으로 나누기
 IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
@@ -35,4 +35,4 @@ sed -i "s/^version:.*/version: $NEW_VERSION/" pubspec.yaml
 echo "Version updated from $CURRENT_VERSION to $NEW_VERSION"
 
 # 새 버전을 GitHub Actions 출력으로 설정
-echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+echo "new_version=$(echo $NEW_VERSION | tr -d '[:space:]')" >> $GITHUB_OUTPUT

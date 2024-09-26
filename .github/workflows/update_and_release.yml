@@ -94,6 +94,7 @@ jobs:
         run: |
           chmod +x ./update_version.sh
           ./update_version.sh
+          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
       
       - name: Update changelog
         run: echo "- Automated release" >> CHANGELOG.md
@@ -118,17 +119,11 @@ jobs:
           github_token: ${{ secrets.GIT_TOKEN }}
           branch: ${{ github.ref }}
 
-      - name: Create Git tag
-        run: |
-          NEW_VERSION="v${{ steps.bump_version.outputs.new_version }}"
-          git tag $NEW_VERSION
-          git push origin $NEW_VERSION
-
       - name: Create Release
         env:
           GITHUB_TOKEN: ${{ secrets.GIT_TOKEN }}
         run: |
-          NEW_VERSION="v${{ steps.bump_version.outputs.new_version }}"
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           gh release create "$NEW_VERSION" \
             --target ${{ github.sha }} \
             --title "Release $NEW_VERSION" \
