@@ -1,0 +1,55 @@
+name: Version Bump Test
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.3'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Get current version
+        id: get_version
+        run: |
+          CURRENT_VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: *//')
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump_version
+        run: |
+          chmod +x ./update_version.sh
+          ./update_version.sh
+          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Commit changes
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add pubspec.yaml
+          git commit -m "chore: Bump version to ${{ steps.bump_version.outputs.new_version }}"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GIT_TOKEN }}
+          branch: ${{ github.ref }}
+
+      - name: Debug information
+        run: |
+          echo "Current version: ${{ steps.get_version.outputs.version }}"
+          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
+          cat pubspec.yaml
