@@ -1,13 +1,19 @@
 #!/bin/bash
 
 # 현재 버전 가져오기
-CURRENT_VERSION=$(grep 'version: ' pubspec.yaml | sed 's/version: *//')
+CURRENT_VERSION=$(grep 'version: ' pubspec.yaml | sed 's/version: *//;s/[[:space:]]//g')
 
 # 버전을 부분으로 나누기
 IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
 MAJOR=${VERSION_PARTS[0]}
 MINOR=${VERSION_PARTS[1]}
 PATCH=${VERSION_PARTS[2]}
+
+# 각 부분이 숫자인지 확인
+if ! [[ "$MAJOR" =~ ^[0-9]+$ ]] || ! [[ "$MINOR" =~ ^[0-9]+$ ]] || ! [[ "$PATCH" =~ ^[0-9]+$ ]]; then
+    echo "Error: 버전 값이 숫자가 아닙니다."
+    exit 1
+fi
 
 # 버전 업데이트 로직
 if (( PATCH == 9 )); then
