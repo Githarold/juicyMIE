@@ -94,7 +94,7 @@ jobs:
         run: |
           chmod +x ./update_version.sh
           ./update_version.sh
-          echo "New version: ${{ steps.bump_version.outputs.new_version }}"
+        shell: /bin/bash
       
       - name: Update changelog
         run: echo "- Automated release" >> CHANGELOG.md
