@@ -4,6 +4,7 @@ import 'print_progress_screen.dart';
 import 'settings_screen.dart';
 import 'printer_connection_screen.dart';
 import 'info_screen.dart';
+import 'temperature_dashboard_screen.dart';
 import '../services/bluetooth_service.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
@@ -69,12 +70,12 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                Expanded(
+                Flexible(
                   flex: 2,
                   child: _buildPrinterStatusCard(context),
                 ),
                 const SizedBox(height: 16),
-                Expanded(
+                Flexible(
                   flex: 3,
                   child: _buildQuickActionsGrid(context),
                 ),
@@ -115,6 +116,24 @@ class _HomeScreenState extends State<HomeScreen> {
               Text('펌웨어 버전: 1.2.3', style: TextStyle(fontSize: 18)),
             ] else
               Text('프린터에 연결되어 있지 않습니다.', style: TextStyle(color: Colors.red, fontSize: 18)),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TemperatureDashboardScreen()),
+                );
+              },
+              icon: Icon(Icons.thermostat),
+              label: Text('온도 대시보드'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,  // 'primary' 대신
+                foregroundColor: Colors.white,   // 'onPrimary' 대신
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -198,68 +217,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActionsGrid(BuildContext context) {
-    return GridView.builder(
-      itemCount: 4,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.3,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildQuickActionCard(context, '새 프린트 시작', Icons.play_arrow, Colors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GCodeManagementScreen())))),
+              SizedBox(width: 16),
+              Expanded(child: _buildQuickActionCard(context, '진행 중인 프린트', Icons.assessment, Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrintProgressScreen())))),
+            ],
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildQuickActionCard(context, '설정', Icons.settings, Colors.grey, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen())))),
+              SizedBox(width: 16),
+              Expanded(child: _buildQuickActionCard(context, '프린터 연결', Icons.bluetooth, Colors.green, () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PrinterConnectionScreen())))),
+            ],
+          ),
+        ],
       ),
-      itemBuilder: (context, index) {
-        switch (index) {
-          case 0:
-            return _buildQuickActionCard(
-              context,
-              '새 프린트 시작',
-              Icons.play_arrow,
-              Colors.blue,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const GCodeManagementScreen()),
-              ),
-            );
-          case 1:
-            return _buildQuickActionCard(
-              context,
-              '진행 중인 프린트',
-              Icons.assessment,
-              Colors.orange,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PrintProgressScreen()),
-              ),
-            );
-          case 2:
-            return _buildQuickActionCard(
-              context,
-              '설정',
-              Icons.settings,
-              Colors.grey,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              ),
-            );
-          case 3:
-            return _buildQuickActionCard(
-              context,
-              '프린터 연결',
-              Icons.bluetooth,
-              Colors.green,
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const PrinterConnectionScreen()),
-              ),
-            );
-          default:
-            return Container();
-        }
-      },
     );
   }
 
-  Widget _buildQuickActionCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap, {bool isWide = false}) {
     return Card(
       color: color,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -267,17 +248,20 @@ class _HomeScreenState extends State<HomeScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: Colors.white),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(isWide ? 24.0 : 16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: isWide ? 64 : 48, color: Colors.white),
+              SizedBox(height: isWide ? 24 : 16),
+              Text(
+                title,
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: isWide ? 20 : 16),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -3,98 +3,114 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../services/bluetooth_service.dart';
 import '../services/file_service.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:provider/provider.dart';
 
 class GCodeManagementScreen extends StatefulWidget {
   const GCodeManagementScreen({super.key});
 
   @override
-  State<GCodeManagementScreen> createState() => GCodeManagementScreenState();
+  State<GCodeManagementScreen> createState() => _GCodeManagementScreenState();
 }
 
-class GCodeManagementScreenState extends State<GCodeManagementScreen> {
-  final BluetoothService _bluetoothService = BluetoothService();
-  late final FileService _fileService;
+class _GCodeManagementScreenState extends State<GCodeManagementScreen> {
+  late final BluetoothService _bluetoothService;
+  final FileService _fileService = getFileService();
   List<Map<String, String>> gcodeFiles = [];
 
   @override
   void initState() {
     super.initState();
-    _fileService = getFileService();
-    _connectToPrinter();
+    _bluetoothService = Provider.of<BluetoothService>(context, listen: false);
     _loadFiles();
-  }
-
-  Future<void> _connectToPrinter() async {
-    if (kIsWeb) return; // 웹에서는 블루투스 연결 건너뛰기
-    const String printerAddress = '00:00:00:00:00:00';
-    bool connected = await _bluetoothService.connectToPrinter(printerAddress);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(connected ? '프린터에 연결되었습니다.' : '프린터 연결에 실패했습니다.'),
-        ),
-      );
-    }
   }
 
   Future<void> _loadFiles() async {
     try {
-      List<String> files = await _fileService.getGCodeFiles();
-      setState(() {
-        gcodeFiles = files.map((file) {
-          return {
-            'name': file,
-            'size': '1.0 MB', // 실제 파일 크기를 가져오는 로직 필요
-            'date': DateTime.now().toString().split(' ')[0], // 실제 파일 생성 날짜를 가져오는 로직 필요
-          };
-        }).toList();
-      });
+      gcodeFiles = await _fileService.getGCodeFiles();
+      setState(() {});
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('파일 로드 중 오류 발생: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('파일 로드 중 오류 발생: $e')),
+        );
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('파일 목록'),
-      ),
-      body: ListView.builder(
-        itemCount: gcodeFiles.length,
-        itemBuilder: (context, index) {
-          final file = gcodeFiles[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ListTile(
-              title: Text(file['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text('Size: ${file['size']} | Created: ${file['date']}'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.print, color: Colors.blue),
-                    onPressed: () => _startPrinting(file),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _confirmDeleteFile(index),
-                  ),
-                ],
-              ),
-              onTap: () => _showFileDetails(file),
-            ),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addFile,
-        tooltip: '파일 추가',
-        child: const Icon(Icons.add),
+  Future<void> _uploadFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+
+      if (result != null) {
+        String fileName = result.files.single.name;
+        if (fileName.toLowerCase().endsWith('.gcode')) {
+          if (kIsWeb) {
+            await _fileService.uploadGCodeFileWeb(result.files.single.bytes!, fileName);
+          } else {
+            await _fileService.uploadGCodeFile(result.files.single.path!, fileName);
+          }
+          await _loadFiles();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('파일이 성공적으로 업로드되었습니다.')),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('G-code 파일만 업로드할 수 있습니다.')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('파일 업로드 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteFile(String fileName) async {
+    try {
+      await _fileService.deleteGCodeFile(fileName);
+      setState(() {
+        gcodeFiles.removeWhere((file) => file['name'] == fileName);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('파일 "$fileName"이(가) 삭제되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('파일 삭제 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _showFilePreview(String fileName) async {
+    final preview = await _fileService.getGCodePreview(fileName, 10);
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(fileName),
+        content: SingleChildScrollView(
+          child: Text(preview),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('닫기'),
+          ),
+        ],
       ),
     );
   }
@@ -117,7 +133,7 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
               child: const Text('시작'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                _startPrintingProcess(file);
+                _connectAndPrint(file);
               },
             ),
           ],
@@ -126,28 +142,97 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
     );
   }
 
-  Future<void> _startPrintingProcess(Map<String, String> file) async {
+  Future<void> _connectAndPrint(Map<String, String> file) async {
     try {
-      await _bluetoothService.startPrinting(file['name']!);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${file['name']} 출력을 시작합니다.')),
-      );
+      String printerAddress = await _getPrinterAddress();
+      bool connected = await _bluetoothService.connectToPrinter(printerAddress);
+      if (connected) {
+        await _bluetoothService.sendGCode(file['content'] ?? '');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('출력이 시작되었습니다.')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('프린터 연결에 실패했습니다. 프린터 상태를 확인해주세요.')),
+          );
+        }
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('출력 시작 실패: $e')),
-      );
+      print('프린터 연결 또는 출력 중 오류 발생: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('프린터 연결 또는 출력 중 오류 발생: $e')),
+        );
+      }
     }
   }
 
-  void _confirmDeleteFile(int index) {
+  // 프린터 주소를 가져오는 메서드 (실제 구현은 앱의 설정에 따라 다를 수 있음)
+  Future<String> _getPrinterAddress() async {
+    // 예: SharedPreferences에서 가져오기
+    // final prefs = await SharedPreferences.getInstance();
+    // return prefs.getString('printer_address') ?? '';
+    return '00:00:00:00:00:00'; // 임시 반환값
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('G-code 파일 관리'),
+      ),
+      body: ListView.builder(
+        itemCount: gcodeFiles.length,
+        itemBuilder: (context, index) {
+          final file = gcodeFiles[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: ListTile(
+              title: Text(file['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Size: ${file['size']}'),
+                  Text('Created: ${file['date']}'),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.print, color: Colors.blue),
+                    onPressed: () => _startPrinting(file),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _confirmDeleteFile(file['name'] ?? ''),
+                  ),
+                ],
+              ),
+              onTap: () => _showFilePreview(file['name'] ?? ''),
+            ),
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _uploadFile,
+        tooltip: '파일 추가',
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  void _confirmDeleteFile(String fileName) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('파일 삭제 확인'),
-          content: const Text('파일을 삭제하시겠습니까?'),
+          content: Text('정말로 "$fileName" 파일을 삭제하시겠습니까?'),
           actions: <Widget>[
             TextButton(
               child: const Text('취소'),
@@ -159,103 +244,17 @@ class GCodeManagementScreenState extends State<GCodeManagementScreen> {
               child: const Text('삭제'),
               onPressed: () {
                 Navigator.of(context).pop();
-                _deleteFile(index);
+                _deleteFile(fileName);
               },
             ),
           ],
         );
       },
     );
-  }
-
-  Future<void> _deleteFile(int index) async {
-    try {
-      final fileName = gcodeFiles[index]['name'];
-      if (fileName != null) {
-        await _fileService.deleteGCodeFile(fileName);
-        setState(() {
-          gcodeFiles.removeAt(index);
-        });
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$fileName 파일이 삭제되었습니다.')),
-        );
-      } else {
-        throw Exception('파일 이름이 없습니다.');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('파일 삭제 중 오류 발생: $e')),
-      );
-    }
-  }
-
-  void _showFileDetails(Map<String, String> file) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(file['name'] ?? ''),
-          content: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('크기: ${file['size']}'),
-              Text('생성일: ${file['date']}'),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('닫기'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _addFile() async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowedExtensions: null,
-      );
-
-      if (result != null) {
-        String fileName = result.files.single.name;
-        if (!fileName.toLowerCase().endsWith('.gcode')) {
-          throw Exception('지원되지 않는 파일 형식입니다. .gcode 파일만 업로드 가능합니다.');
-        }
-        
-        if (kIsWeb) {
-          await _fileService.uploadGCodeFileWeb(result.files.single.bytes!, fileName);
-        } else {
-          await _fileService.uploadGCodeFile(result.files.single.path!, fileName);
-        }
-        
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$fileName 업로드됨')),
-        );
-        await _loadFiles();
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('파일 업로드 중 오류 발생: $e')),
-      );
-    }
   }
 
   @override
   void dispose() {
-    if (!kIsWeb) {
-      _bluetoothService.disconnect();
-    }
     super.dispose();
   }
 }
