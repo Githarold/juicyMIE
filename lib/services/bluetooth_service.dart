@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as fbp;
+import '../services/file_service.dart';
 
 class TemperatureData {
   final DateTime time;
@@ -11,25 +12,25 @@ class TemperatureData {
 }
 
 class BluetoothService extends ChangeNotifier {
-  static const String printerServiceUuid = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-  static const String gcodeCharacteristicUuid = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-  static const String nozzleTempCharacteristicUuid = "beb5483e-36e1-4688-b7f5-ea07361b26a9";
-  static const String bedTempCharacteristicUuid = "beb5483e-36e1-4688-b7f5-ea07361b26aa";
-  static const String printerStatusCharacteristicUuid = "beb5483e-36e1-4688-b7f5-ea07361b26ab";
+  static const String uartServiceUuid = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+  static const String rxCharUuid = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+  static const String txCharUuid = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 
   fbp.BluetoothDevice? _device;
-  fbp.BluetoothCharacteristic? _gcodeCharacteristic;
-  fbp.BluetoothCharacteristic? _nozzleTempCharacteristic;
-  fbp.BluetoothCharacteristic? _bedTempCharacteristic;
-  fbp.BluetoothCharacteristic? _printerStatusCharacteristic;
+  fbp.BluetoothCharacteristic? _rxCharacteristic;
+  fbp.BluetoothCharacteristic? _txCharacteristic;
 
   String _connectionStatus = '연결 안됨';
-  double? _currentTemperature;
+  double? _currentNozzleTemperature;
   double? _currentBedTemperature;
+  String _printerStatus = '대기 중';
+  Timer? _temperatureCheckTimer;
 
   String get connectionStatus => _connectionStatus;
-  double get currentTemperature => isConnected() ? _currentTemperature ?? 0 : 0;
+  double get currentNozzleTemperature => isConnected() ? _currentNozzleTemperature ?? 0 : 0;
   double get currentBedTemperature => isConnected() ? _currentBedTemperature ?? 0 : 0;
+  double get currentTemperature => currentNozzleTemperature;
+  String get printerStatus => _printerStatus;
 
   final List<TemperatureData> _temperatureHistory = [];
   final int _maxHistorySize = 3600; // 1시간 (3600초)
@@ -49,78 +50,116 @@ class BluetoothService extends ChangeNotifier {
       _connectionStatus = '연결됨';
 
       List<fbp.BluetoothService> services = await _device!.discoverServices();
-      var printerService = services.firstWhere((service) => service.uuid.toString() == printerServiceUuid);
+      var uartService = services.firstWhere((service) => service.uuid.toString() == uartServiceUuid);
 
-      _gcodeCharacteristic = printerService.characteristics.firstWhere(
-        (char) => char.uuid.toString() == gcodeCharacteristicUuid,
+      _rxCharacteristic = uartService.characteristics.firstWhere(
+        (char) => char.uuid.toString() == rxCharUuid,
       );
 
-      _nozzleTempCharacteristic = printerService.characteristics.firstWhere(
-        (char) => char.uuid.toString() == nozzleTempCharacteristicUuid,
+      _txCharacteristic = uartService.characteristics.firstWhere(
+        (char) => char.uuid.toString() == txCharUuid,
       );
 
-      _bedTempCharacteristic = printerService.characteristics.firstWhere(
-        (char) => char.uuid.toString() == bedTempCharacteristicUuid,
-      );
+      await _txCharacteristic!.setNotifyValue(true);
+      _txCharacteristic!.onValueReceived.listen(_handlePrinterResponse);
 
-      _printerStatusCharacteristic = printerService.characteristics.firstWhere(
-        (char) => char.uuid.toString() == printerStatusCharacteristicUuid,
-      );
-
-      // 온도와 상태 알림 설정
-      await _nozzleTempCharacteristic!.setNotifyValue(true);
-      await _bedTempCharacteristic!.setNotifyValue(true);
-      await _printerStatusCharacteristic!.setNotifyValue(true);
-
-      _nozzleTempCharacteristic!.onValueReceived.listen((value) {
-        if (value.isNotEmpty) {
-          _currentTemperature = value.first.toDouble();
-          notifyListeners();
-        }
-      });
-
-      _bedTempCharacteristic!.onValueReceived.listen((value) {
-        if (value.isNotEmpty) {
-          _currentBedTemperature = value.first.toDouble();
-          notifyListeners();
-        }
-      });
-
-      _printerStatusCharacteristic!.onValueReceived.listen((value) {
-        if (value.isNotEmpty) {
-          _connectionStatus = String.fromCharCodes(value);
-          notifyListeners();
-        }
-      });
+      _startPeriodicTemperatureCheck();
 
       notifyListeners();
       return true;
     } catch (e) {
       _connectionStatus = '연결 실패';
       print('프린터 연결 실패: $e');
-      rethrow; // 호출자에게 예외를 전파
+      rethrow;
     } finally {
       await fbp.FlutterBluePlus.stopScan();
     }
   }
 
+  void _startPeriodicTemperatureCheck() {
+    _temperatureCheckTimer = Timer.periodic(Duration(seconds: 5), (_) => checkTemperature());
+  }
+
   Future<void> sendGCode(String gcode) async {
-    if (_gcodeCharacteristic == null) {
-      throw Exception("G-code characteristic not found");
+    if (_rxCharacteristic == null) {
+      throw Exception("RX 특성을 찾을 수 없습니다");
     }
-    await _gcodeCharacteristic!.write(gcode.codeUnits);
+    try {
+      await _rxCharacteristic!.write(gcode.codeUnits);
+      print('G-code 전송됨: $gcode');
+    } catch (e) {
+      print('G-code 전송 실패: $e');
+      throw Exception("G-code 전송 실패: $e");
+    }
+  }
+
+  Future<void> checkTemperature() async {
+    await sendGCode('M105\n');
+  }
+
+  Future<void> setNozzleTemperature(double temperature) async {
+    await sendGCode('M104 S${temperature.round()}\n');
+  }
+
+  Future<void> setBedTemperature(double temperature) async {
+    await sendGCode('M140 S${temperature.round()}\n');
+  }
+
+  Future<void> sendGCodeFile(String fileName) async {
+    final FileService fileService = getFileService();
+    final String gcode = await fileService.readGCodeFile(fileName);
+    final List<String> lines = gcode.split('\n');
+
+    for (String line in lines) {
+      line = line.trim();
+      if (line.isNotEmpty && !line.startsWith(';')) {
+        await sendGCode('$line\n');
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+  }
+
+  void _handlePrinterResponse(List<int> value) {
+    String response = String.fromCharCodes(value);
+    print('프린터 응답: $response');
+
+    RegExp tempExp = RegExp(r'T:(\d+\.\d+) /\d+\.\d+ B:(\d+\.\d+) /\d+\.\d+');
+    Match? tempMatch = tempExp.firstMatch(response);
+    if (tempMatch != null) {
+      _currentNozzleTemperature = double.parse(tempMatch.group(1)!);
+      _currentBedTemperature = double.parse(tempMatch.group(2)!);
+      _checkTemperatureSafety();
+      notifyListeners();
+    }
+
+    RegExp statusExp = RegExp(r'SD printing byte (\d+)/(\d+)');
+    Match? statusMatch = statusExp.firstMatch(response);
+    if (statusMatch != null) {
+      int printed = int.parse(statusMatch.group(1)!);
+      int total = int.parse(statusMatch.group(2)!);
+      double progress = printed / total * 100;
+      _printerStatus = '인쇄 중: ${progress.toStringAsFixed(2)}%';
+      notifyListeners();
+    }
+  }
+
+  void _checkTemperatureSafety() {
+    if (_currentNozzleTemperature! > 250 || _currentBedTemperature! > 110) {
+      _printerStatus = '경고: 온도가 너무 높습니다!';
+      notifyListeners();
+    }
   }
 
   Future<void> disconnect() async {
+    _temperatureCheckTimer?.cancel();
     await _device?.disconnect();
     _device = null;
-    _gcodeCharacteristic = null;
-    _nozzleTempCharacteristic = null;
-    _bedTempCharacteristic = null;
-    _printerStatusCharacteristic = null;
+    _rxCharacteristic = null;
+    _txCharacteristic = null;
     _connectionStatus = '연결 안됨';
-    _currentTemperature = null;
+    _currentNozzleTemperature = null;
     _currentBedTemperature = null;
+    _printerStatus = '대기 중';
     notifyListeners();
   }
 
@@ -128,8 +167,9 @@ class BluetoothService extends ChangeNotifier {
     return _device != null && _connectionStatus == '연결됨';
   }
 
+  // 호환성을 위해 updateTemperatures 메서드 추가
   void updateTemperatures(double nozzle, double bed) {
-    _currentTemperature = nozzle;
+    _currentNozzleTemperature = nozzle;
     _currentBedTemperature = bed;
     notifyListeners();
   }
@@ -138,20 +178,19 @@ class BluetoothService extends ChangeNotifier {
     if (!isConnected()) return 0;
     
     if (type == 'nozzle') {
-      return _currentTemperature ?? 0;
+      return _currentNozzleTemperature ?? 0;
     } else if (type == 'bed') {
       return _currentBedTemperature ?? 0;
     } else {
-      throw ArgumentError('Invalid temperature type');
+      throw ArgumentError('잘못된 온도 유형');
     }
   }
 
   void _updateTemperatureHistory() {
     final now = DateTime.now();
-    final newData = TemperatureData(now, currentTemperature, currentBedTemperature);
+    final newData = TemperatureData(now, currentNozzleTemperature, currentBedTemperature);
     _temperatureHistory.add(newData);
 
-    // 1시간이 지난 데이터 제거
     _temperatureHistory.removeWhere((data) => now.difference(data.time).inSeconds > _maxHistorySize);
 
     notifyListeners();

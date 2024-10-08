@@ -13,14 +13,12 @@ class GCodeManagementScreen extends StatefulWidget {
 }
 
 class _GCodeManagementScreenState extends State<GCodeManagementScreen> {
-  late final BluetoothService _bluetoothService;
   final FileService _fileService = getFileService();
   List<Map<String, String>> gcodeFiles = [];
 
   @override
   void initState() {
     super.initState();
-    _bluetoothService = Provider.of<BluetoothService>(context, listen: false);
     _loadFiles();
   }
 
@@ -115,67 +113,32 @@ class _GCodeManagementScreenState extends State<GCodeManagementScreen> {
     );
   }
 
-  void _startPrinting(Map<String, String> file) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          title: const Text('출력 시작'),
-          content: Text('${file['name']} 파일의 출력을 시작하시겠습니까?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('취소'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('시작'),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _connectAndPrint(file);
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _connectAndPrint(Map<String, String> file) async {
-    try {
-      String printerAddress = await _getPrinterAddress();
-      bool connected = await _bluetoothService.connectToPrinter(printerAddress);
-      if (connected) {
-        await _bluetoothService.sendGCode(file['content'] ?? '');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('출력이 시작되었습니다.')),
-          );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('프린터 연결에 실패했습니다. 프린터 상태를 확인해주세요.')),
-          );
-        }
-      }
-    } catch (e) {
-      print('프린터 연결 또는 출력 중 오류 발생: $e');
+  Future<void> _startPrinting(Map<String, String> file) async {
+    final bluetoothService = Provider.of<BluetoothService>(context, listen: false);
+    
+    if (!bluetoothService.isConnected()) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('프린터 연결 또는 출력 중 오류 발생: $e')),
+          const SnackBar(content: Text('프린터가 연결되어 있지 않습니다.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await bluetoothService.sendGCodeFile(file['name']!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('G-code 파일 전송이 완료되었습니다.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('G-code 파일 전송 중 오류가 발생했습니다: $e')),
         );
       }
     }
-  }
-
-  // 프린터 주소를 가져오는 메서드 (실제 구현은 앱의 설정에 따라 다를 수 있음)
-  Future<String> _getPrinterAddress() async {
-    // 예: SharedPreferences에서 가져오기
-    // final prefs = await SharedPreferences.getInstance();
-    // return prefs.getString('printer_address') ?? '';
-    return '00:00:00:00:00:00'; // 임시 반환값
   }
 
   @override
