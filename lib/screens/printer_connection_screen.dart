@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:provider/provider.dart';
 import '../services/bluetooth_service.dart';
 
 class PrinterConnectionScreen extends StatefulWidget {
@@ -10,7 +11,6 @@ class PrinterConnectionScreen extends StatefulWidget {
 }
 
 class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
-  final BluetoothService _bluetoothService = BluetoothService();
   List<BluetoothDevice> _pairedDevices = [];
   final List<BluetoothDiscoveryResult> _discoveredDevices = [];
   bool _isScanning = false;
@@ -69,7 +69,8 @@ class _PrinterConnectionScreenState extends State<PrinterConnectionScreen> {
       SnackBar(content: Text('${device.name}에 연결 중...')),
     );
     
-    bool connected = await _bluetoothService.connectToPrinter(device.address);
+    final bluetoothService = Provider.of<BluetoothService>(context, listen: false);
+    bool connected = await bluetoothService.connectToPrinter(device.address);
     if (!mounted) return;
     
     ScaffoldMessenger.of(context).clearSnackBars();

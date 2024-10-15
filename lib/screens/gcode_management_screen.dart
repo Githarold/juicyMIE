@@ -32,6 +32,7 @@ class _GCodeManagementScreenState extends State<GCodeManagementScreen> {
           SnackBar(content: Text('파일 로드 중 오류 발생: $e')),
         );
       }
+      print('파일 로드 오류: $e'); // 로그 추가
     }
   }
 

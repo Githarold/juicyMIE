@@ -39,12 +39,15 @@ class _HomeScreenState extends State<HomeScreen> {
       try {
         double nozzle = await widget.bluetoothService.getTemperature('nozzle');
         double bed = await widget.bluetoothService.getTemperature('bed');
-        widget.bluetoothService.updateTemperatures(nozzle, bed);
+        if (mounted) {
+          setState(() {
+            widget.bluetoothService.updateTemperatures(nozzle, bed);
+          });
+        }
       } catch (e) {
         print('온도 업데이트 중 오류 발생: $e');
       }
     }
-    setState(() {}); // UI 업데이트
   }
 
   @override
@@ -66,21 +69,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          body: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Flexible(
-                  flex: 2,
-                  child: _buildPrinterStatusCard(context),
-                ),
-                const SizedBox(height: 16),
-                Flexible(
-                  flex: 3,
-                  child: _buildQuickActionsGrid(context),
-                ),
-                const SizedBox(height: 16), // 하단 여백 추가
-              ],
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildPrinterStatusCard(context),
+                          const SizedBox(height: 16),
+                          _buildQuickActionsGrid(context),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!widget.bluetoothService.isConnected())
+                    _buildTemperatureDashboardButton(),
+                ],
+              ),
             ),
           ),
         );
@@ -113,27 +122,11 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
               Text('프린터 모델: 과즙 MIE V1', style: TextStyle(fontSize: 18)),
               const SizedBox(height: 8),
-              Text('펌웨어 버전: 1.2.3', style: TextStyle(fontSize: 18)),
+              Text('펌웨어: Marlin 2.1.2.4', style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 16),
+              _buildTemperatureDashboardButton(),
             ] else
               Text('프린터에 연결되어 있지 않습니다.', style: TextStyle(color: Colors.red, fontSize: 18)),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const TemperatureDashboardScreen()),
-                );
-              },
-              icon: Icon(Icons.thermostat),
-              label: Text('온도 대시보드'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,  // 'primary' 대신
-                foregroundColor: Colors.white,   // 'onPrimary' 대신
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -272,5 +265,25 @@ class _HomeScreenState extends State<HomeScreen> {
     _updateTimer?.cancel();
     widget.bluetoothService.disconnect();
     super.dispose();
+  }
+
+  Widget _buildTemperatureDashboardButton() {
+    return ElevatedButton.icon(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const TemperatureDashboardScreen()),
+        );
+      },
+      icon: Icon(Icons.thermostat),
+      label: Text('온도 대시보드'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.purple,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
   }
 }

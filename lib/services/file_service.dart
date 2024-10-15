@@ -142,11 +142,16 @@ class NativeFileService implements FileService {
   Future<String> readGCodeFile(String fileName) async {
     final path = await _localPath;
     final file = File('$path/$fileName');
-    print('Reading file content from: $path/$fileName'); // 이 줄을 추가하세요
-    if (await file.exists()) {
-      return await file.readAsString();
-    } else {
-      throw FileSystemException('파일을 찾을 수 없습니다: $fileName');
+    print('Reading file content from: $path/$fileName');
+    try {
+      if (await file.exists()) {
+        return await file.readAsString();
+      } else {
+        throw FileSystemException('파일을 찾을 수 없습니다: $fileName');
+      }
+    } catch (e) {
+      print('파일 읽기 오류: $e');
+      rethrow;
     }
   }
 
